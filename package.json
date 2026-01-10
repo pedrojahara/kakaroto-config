@@ -1,0 +1,26 @@
+{
+  "name": "kakaroto-config",
+  "version": "1.0.0",
+  "description": "Claude Code configuration by Pedro Jahara - autonomous workflows for /feature, /debug, /gate",
+  "bin": {
+    "kakaroto-config": "./bin/install.js"
+  },
+  "files": [
+    "bin",
+    "config"
+  ],
+  "keywords": [
+    "claude",
+    "claude-code",
+    "anthropic",
+    "ai",
+    "config",
+    "workflow"
+  ],
+  "author": "Pedro Jahara",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pedrojahara/kakaroto-config"
+  }
+}
