@@ -14,6 +14,22 @@ npx kakaroto-config --global
 
 **Local is recommended** because each project can have its own customizations while inheriting the global rules.
 
+## Updating
+
+To update to the latest version, run the same command again:
+
+```bash
+# Update local installation
+npx kakaroto-config@latest
+
+# Update global installation
+npx kakaroto-config@latest --global
+```
+
+The installer will detect the existing `.claude/` folder and ask if you want to overwrite.
+
+> **Note:** If you previously installed globally (`~/.claude/`) and want to switch to local (`./.claude/`), just run `npx kakaroto-config@latest` in your project folder. Both can coexist - Claude Code will use local config when available.
+
 ## What Gets Installed
 
 ```
