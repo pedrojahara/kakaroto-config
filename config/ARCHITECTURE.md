@@ -97,9 +97,11 @@ Este documento descreve a arquitetura de configuracao do Claude Code, otimizada 
 │   │
 │   ├── debug.md             # /debug - orquestrador
 │   ├── debug/
-│   │   ├── 01-investigate.md # Fase 1: 5 Whys
-│   │   ├── 02-fix.md         # Fase 2: correcao minima
-│   │   └── 03-verify.md      # Fase 3: confirmar fix
+│   │   ├── 01-reproduce.md   # Fase 1: reproduzir bug
+│   │   ├── 02-investigate.md # Fase 2: 5 Whys
+│   │   ├── 03-fix.md         # Fase 3: correcao minima
+│   │   ├── 04-verify.md      # Fase 4: confirmar fix
+│   │   └── 05-commit.md      # Fase 5: commit
 │   │
 │   └── gate.md              # /gate - quality gate completo
 │
@@ -216,22 +218,28 @@ User: "erro ao publicar video"
            │
            ▼
 ┌────────────────────────┐     ┌────────────────────────┐
-│   01-investigate.md    │────►│   02-fix.md            │
-│   - Reproduzir bug     │     │   - Gate de criticidade│
-│   - 5 Whys com         │     │   - EnterPlanMode se   │
-│     EVIDENCIA          │     │     path critico       │
-└────────────────────────┘     │   - Fix MINIMO         │
-                               │   - Testes obrigatorio │
-                               └───────────┬────────────┘
+│   01-reproduce.md      │────►│   02-investigate.md    │
+│   - Criar teste que    │     │   - 5 Whys com         │
+│     reproduz o bug     │     │     EVIDENCIA          │
+│   - Confirmar falha    │     │   - Root cause         │
+└────────────────────────┘     └───────────┬────────────┘
                                            │
                                            ▼
-                               ┌────────────────────────┐
-                               │   03-verify.md         │
-                               │   - Reproduzir fix     │
-                               │   - Quality gates      │
-                               │   - Salvar bug raro    │
-                               │     em MCP Memory      │
-                               └────────────────────────┘
+┌────────────────────────┐     ┌────────────────────────┐
+│   04-verify.md         │◄────│   03-fix.md            │
+│   - Rodar teste        │     │   - Fix MINIMO         │
+│   - Confirmar que      │     │   - Apenas o necessario│
+│     passou             │     │   - Nao refatorar      │
+└───────────┬────────────┘     └────────────────────────┘
+            │
+            ▼
+┌────────────────────────┐
+│   05-commit.md         │
+│   - Commit do fix      │
+│   - Padrao de mensagem │
+│   - Memory sync se     │
+│     bug raro           │
+└────────────────────────┘
 ```
 
 ### /gate (Quality Gate Antes de PR)
