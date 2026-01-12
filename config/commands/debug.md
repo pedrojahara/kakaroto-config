@@ -6,11 +6,11 @@ model: opus
 Investigar e resolver: $ARGUMENTS
 
 ## INICIAR
-AÇÃO OBRIGATÓRIA: Read ~/.claude/commands/debug/01-investigate.md
-Seguir instruções. Cada fase aponta para a próxima.
+ACAO OBRIGATORIA: Read ~/.claude/commands/debug/01-reproduce.md
+Seguir instrucoes. Cada fase aponta para a proxima.
 
 ## Fluxo
-Investigate → Fix → Verify → Fim (SEM PARADAS)
+Reproduce → Investigate → Fix → Verify → Commit → Fim (SEM PARADAS)
 
 ## Regras
 1. ZERO paradas até o final

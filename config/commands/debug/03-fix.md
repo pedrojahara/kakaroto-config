@@ -1,7 +1,7 @@
-# Fase 2: Fix
+# Fase 3: Fix
 
 ## Contexto
-Causa raiz identificada. Implementar fix de forma AUTÔNOMA.
+Causa raiz identificada. Implementar fix de forma AUTONOMA.
 
 ---
 
@@ -9,7 +9,7 @@ Causa raiz identificada. Implementar fix de forma AUTÔNOMA.
 
 ### 0.1 Identificar Paths Afetados
 
-Extrair arquivos da causa raiz documentada na investigacao (fase 01-investigate).
+Extrair arquivos da causa raiz documentada na investigacao (fase 02-investigate).
 
 ### 0.2 Lista de Paths Criticos
 
@@ -53,7 +53,7 @@ Prosseguir direto para Passo 1 (autonomia total)
 describe('[contexto do bug]', () => {
   it('should [comportamento esperado]', () => {
     // Arrange: setup que causa o bug
-    // Act: ação que dispara o bug
+    // Act: acao que dispara o bug
     // Assert: verificar comportamento correto
   })
 })
@@ -64,25 +64,25 @@ describe('[contexto do bug]', () => {
 npm test -- --testPathPattern="[arquivo]"
 ```
 
-O teste DEVE falhar antes do fix. Se passar, o teste não reproduz o bug.
+O teste DEVE falhar antes do fix. Se passar, o teste nao reproduz o bug.
 
 ---
 
 ## Passo 2: Implementar Fix
 
-### 2.1 Fix Mínimo
+### 2.1 Fix Minimo
 ```
 FIX:
 Arquivo: [arquivo:linha]
-Antes: [código atual]
-Depois: [código novo]
+Antes: [codigo atual]
+Depois: [codigo novo]
 Justificativa: [por que resolve a causa raiz]
 ```
 
 ### 2.2 Regras
-- APENAS o necessário para resolver a causa raiz
-- NÃO refatorar código não relacionado
-- NÃO adicionar features
+- APENAS o necessario para resolver a causa raiz
+- NAO refatorar codigo nao relacionado
+- NAO adicionar features
 - Seguir patterns existentes do projeto
 
 ---
@@ -94,15 +94,30 @@ Justificativa: [por que resolve a causa raiz]
 npm test -- --testPathPattern="[arquivo]"
 ```
 
-### 3.2 Bug Não Reproduz
-Executar passos originais. Bug não deve ocorrer.
+### 3.2 Bug Nao Reproduz
+Executar passos originais. Bug nao deve ocorrer.
+
+---
+
+## Passo 4: Checkpoint
+
+```javascript
+TodoWrite({
+  todos: [
+    { content: "Investigate: causa raiz identificada", status: "completed", activeForm: "Root cause identified" },
+    { content: "Fix: teste de regressao criado", status: "completed", activeForm: "Regression test created" },
+    { content: "Fix: correcao implementada", status: "completed", activeForm: "Fix implemented" },
+    { content: "Verify: validar quality gates", status: "pending", activeForm: "Validating quality gates" }
+  ]
+})
+```
 
 ---
 
 ## Output
 
-Fix implementado. Teste de regressão passando.
+Fix implementado. Teste de regressao passando.
 
 ---
-## PRÓXIMA FASE
-AÇÃO OBRIGATÓRIA: Read ~/.claude/commands/debug/03-verify.md
+## PROXIMA FASE
+ACAO OBRIGATORIA: Read ~/.claude/commands/debug/04-verify.md
