@@ -5,7 +5,26 @@ const path = require('path');
 const os = require('os');
 const readline = require('readline');
 
-const CLAUDE_DIR = path.join(os.homedir(), '.claude');
+const args = process.argv.slice(2);
+const isGlobal = args.includes('--global');
+const showHelp = args.includes('--help') || args.includes('-h');
+
+if (showHelp) {
+  console.log(`
+Usage: npx kakaroto-config [options]
+
+Options:
+  --global    Install to ~/.claude/ (global, all projects)
+  --help, -h  Show this help message
+
+Default: Install to ./.claude/ (local, current project)
+`);
+  process.exit(0);
+}
+
+const CLAUDE_DIR = isGlobal
+  ? path.join(os.homedir(), '.claude')
+  : path.join(process.cwd(), '.claude');
 const CONFIG_DIR = path.join(__dirname, '..', 'config');
 
 const rl = readline.createInterface({
@@ -52,9 +71,12 @@ function countFiles(dir) {
 }
 
 async function main() {
+  const targetPath = isGlobal ? '~/.claude/' : './.claude/ (local)';
+  const targetDisplay = isGlobal ? '~/.claude/' : '.claude/';
+
   console.log('\n🥋 kakaroto-config - Claude Code Configuration\n');
-  console.log('This will install the following to ~/.claude/:');
-  console.log('  - CLAUDE.md (global rules)');
+  console.log(`This will install the following to ${targetPath}:`);
+  console.log('  - CLAUDE.md (rules)');
   console.log('  - ARCHITECTURE.md (documentation)');
   console.log('  - commands/ (skills: /feature, /debug, /gate)');
   console.log('  - agents/ (7 specialized subagents)\n');
@@ -63,7 +85,7 @@ async function main() {
   console.log(`Total: ${fileCount} files\n`);
 
   if (fs.existsSync(CLAUDE_DIR)) {
-    const answer = await question('~/.claude/ already exists. Overwrite? (y/N): ');
+    const answer = await question(`${targetDisplay} already exists. Overwrite? (y/N): `);
     if (answer.toLowerCase() !== 'y') {
       console.log('\nAborted. No changes made.');
       rl.close();
@@ -89,7 +111,7 @@ async function main() {
     console.log('  2. Try /feature to create a new feature');
     console.log('  3. Try /debug to fix a bug');
     console.log('  4. Try /gate before creating a PR\n');
-    console.log('Read ~/.claude/ARCHITECTURE.md for full documentation.\n');
+    console.log(`Read ${targetDisplay}ARCHITECTURE.md for full documentation.\n`);
   } catch (err) {
     console.error('Error during installation:', err.message);
     process.exit(1);

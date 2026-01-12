@@ -4,11 +4,27 @@ Claude Code configuration for autonomous development workflows.
 
 ## Quick Install
 
+### Local (project directory)
+
 ```bash
 npx kakaroto-config
 ```
 
-This installs the configuration to `~/.claude/`.
+Installs to `./.claude/` in current directory. Good for project-specific configs.
+
+### Global (home directory)
+
+```bash
+npx kakaroto-config --global
+```
+
+Installs to `~/.claude/` for all projects.
+
+### Help
+
+```bash
+npx kakaroto-config --help
+```
 
 ## What's Included
 
@@ -41,7 +57,7 @@ This installs the configuration to `~/.claude/`.
 
 ## Documentation
 
-After installation, read `~/.claude/ARCHITECTURE.md` for full documentation.
+After installation, read `ARCHITECTURE.md` in your install directory for full documentation.
 
 ## License
 
