@@ -38,18 +38,20 @@ The installer will detect the existing `.claude/` folder and ask if you want to 
 ├── ARCHITECTURE.md        # Full documentation of the system
 ├── commands/              # Skills (invoked via /skill)
 │   ├── feature.md         # /feature orchestrator
-│   ├── feature/           # 5 phases: interview → spec → plan → implement → quality
+│   ├── feature/           # 7 phases: interview → spec → plan → implement → quality → commit → evaluate
 │   ├── debug.md           # /debug orchestrator
-│   ├── debug/             # 5 phases: reproduce → investigate → fix → verify → commit
+│   ├── debug/             # 6 phases + playbooks, techniques, templates, validators
 │   └── gate.md            # /gate - quality gate before PR
-└── agents/                # 7 specialized subagents
-    ├── test-fixer.md
-    ├── code-reviewer.md
-    ├── code-simplifier.md
-    ├── dry-enforcer.md
-    ├── visual-validator.md
-    ├── terraform-validator.md
-    └── memory-sync.md
+├── agents/                # 7 specialized subagents
+│   ├── test-fixer.md
+│   ├── code-reviewer.md
+│   ├── code-simplifier.md
+│   ├── dry-enforcer.md
+│   ├── visual-validator.md
+│   ├── terraform-validator.md
+│   └── memory-sync.md
+└── templates/             # Spec templates
+    └── spec-template.md
 ```
 
 ## Skills (Commands)
@@ -148,6 +150,32 @@ Done
 - Claude Code CLI
 - MCP Memory server (optional, for knowledge persistence)
 - Playwright MCP (optional, for visual validation)
+
+## Development
+
+### Releasing a New Version
+
+This project uses `~/.claude/` as the source of truth. To publish changes:
+
+```bash
+npm run release
+```
+
+This command will:
+1. Sync files from `~/.claude/` to `config/` (excluding personal files like `audit-command/`)
+2. Bump the patch version automatically
+3. Create a git commit and push
+4. Publish to npm
+
+**Files synced:**
+- `CLAUDE.md`, `ARCHITECTURE.md`
+- `commands/` (all skills)
+- `agents/` (all subagents)
+- `templates/`
+
+**Files excluded:**
+- `audit-command/` (personal)
+- Session data (`plans/`, `specs/`, `interviews/`, etc.)
 
 ## License
 
