@@ -218,8 +218,8 @@ async function main() {
   fs.writeFileSync(PACKAGE_JSON, JSON.stringify(pkg, null, 2) + '\n');
   console.log(`Updated package.json: ${currentVersion} → ${newVersion}`);
 
-  // Git operations - use execCommandSafe for commands with user-derived values
-  if (!execCommandSafe('git', ['add', '.'], 'Staging changes')) {
+  // Git operations - selective add to avoid committing session data
+  if (!execCommandSafe('git', ['add', 'config/', 'package.json'], 'Staging changes')) {
     rl.close();
     process.exit(1);
   }
