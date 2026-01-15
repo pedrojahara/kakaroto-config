@@ -41,7 +41,31 @@ git push
 
 ---
 
-## Passo 4: Checkpoint Final
+## Passo 4: Memory Sync
+
+Sincronizar conhecimento adquirido durante debug (NÃO bugs - esses são efêmeros).
+
+```javascript
+Task({
+  subagent_type: "memory-sync",
+  prompt: "Sincronizar knowledge graph após debug. IMPORTANTE: NÃO salvar o bug em si. Salvar apenas: patterns descobertos, fluxos entendidos, procedimentos documentados, decisões arquiteturais. Se nenhum conhecimento novo significativo foi adquirido, reportar 'Sem alterações'.",
+  description: "Sync memory graph"
+})
+```
+
+**O que salvar:**
+- Pattern novo descoberto durante investigação
+- Fluxo complexo que levou tempo entender
+- Procedimento de debug que pode ser reutilizado
+
+**O que NÃO salvar:**
+- O bug em si (fix está no código)
+- Detalhes específicos do erro
+- Stack traces ou logs
+
+---
+
+## Passo 5: Checkpoint Final
 
 ```javascript
 TodoWrite({
@@ -50,14 +74,15 @@ TodoWrite({
     { content: "Investigate: causa raiz identificada", status: "completed", activeForm: "Root cause identified" },
     { content: "Fix: correcao implementada", status: "completed", activeForm: "Fix implemented" },
     { content: "Verify: quality gates passando", status: "completed", activeForm: "Quality gates passed" },
-    { content: "Commit: commitado e pushed", status: "completed", activeForm: "Committed and pushed" }
+    { content: "Commit: commitado e pushed", status: "completed", activeForm: "Committed and pushed" },
+    { content: "Memory: conhecimento sincronizado", status: "completed", activeForm: "Knowledge synced" }
   ]
 })
 ```
 
 ---
 
-## Passo 5: Confirmar
+## Passo 6: Confirmar
 
 ```bash
 git log --oneline -1
@@ -74,3 +99,8 @@ Reportar ao user: fix commitado e pushed.
 3. **Mensagem em ingles**
 4. **NUNCA** --force push
 5. **NUNCA** commitar se verify falhou
+
+---
+
+## PROXIMA FASE
+ACAO OBRIGATORIA: Read ~/.claude/commands/debug/06-evaluate.md

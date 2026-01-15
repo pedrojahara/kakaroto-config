@@ -5,9 +5,18 @@
 SE continuacao direta de 02-spec (mesma sessao):
   Contexto ja disponivel, prosseguir
 
-SE retomando sessao interrompida:
+### 0.1 Carregar Contexto da Interview (SE necessário)
 ```
-Read .claude/specs/current.md
+Read .claude/interviews/current.md
+```
+Consultar SE surgir dúvida sobre decisões já tomadas na Interview.
+Evita re-perguntar o que já foi respondido.
+
+### 0.2 SE retomando sessão interrompida
+```
+Read .claude/interviews/current.md (decisões originais)
+Read .claude/specs/current.md (spec aprovada)
+Read .claude/plans/current.md (plano parcial, se existir)
 ```
 
 ---
@@ -95,7 +104,62 @@ Apos implementacao:
 
 ---
 
-## Passo 7: Persistir Plano
+## Passo 7: Registro de Decisões
+
+### 7.1 Decisões Tomadas
+Documentar decisões feitas autonomamente durante o planejamento:
+
+| Decisão | Opções Consideradas | Escolha | Justificativa |
+|---------|---------------------|---------|---------------|
+| [ex: estrutura de dados] | Array / Map | Map | Lookup O(1) necessário |
+| [ex: local do código] | services/ / utils/ | services/ | Segue pattern existente |
+
+### 7.2 Decisões Pendentes
+Listar decisões que APENAS o user pode tomar:
+
+| Decisão | Opções | Impacto na Feature |
+|---------|--------|-------------------|
+| [ex: formato export] | CSV / JSON / Excel | Afeta UX de download |
+
+**Critérios para classificar como "Pendente":**
+1. Impacta comportamento/UX visível ao user final
+2. Não existe default claro no projeto
+3. Não foi respondida na Interview (verificar interviews/current.md)
+
+---
+
+## Passo 8: Clarificações (CONDICIONAL)
+
+**SE "Decisões Pendentes" NÃO estiver vazio:**
+
+Usar AskUserQuestion para resolver cada decisão pendente.
+**Limite:** Máximo 5 perguntas por execução.
+
+```javascript
+AskUserQuestion({
+  questions: [{
+    question: "[Decisão pendente como pergunta]",
+    header: "[2-3 palavras]",
+    options: [
+      { label: "[Opção A]", description: "[trade-off/impacto]" },
+      { label: "[Opção B]", description: "[trade-off/impacto]" }
+    ],
+    multiSelect: false
+  }]
+})
+```
+
+Após respostas:
+1. Mover decisões de "Pendentes" para "Tomadas"
+2. Adicionar resposta do user na coluna "Escolha"
+3. Atualizar plano se necessário
+
+**SE "Decisões Pendentes" estiver vazio:**
+Prosseguir direto para Passo 9.
+
+---
+
+## Passo 9: Persistir Plano
 
 1. Usar mesmo slug da spec (gerado em 02-spec)
 
@@ -107,11 +171,24 @@ Apos implementacao:
 
 ---
 
+## Passo 10: Checkpoint
+
+Usar TodoWrite para registrar items da fase Planner como "completed".
+Adicionar "Implement: executar plano aprovado" como "pending".
+
+**Gates:**
+- Plano deve estar salvo
+- "Decisões Pendentes" deve estar vazio (todas resolvidas)
+
+---
+
 ## Output
 
 1. Salvar plano (usar TodoWrite para tracking)
-2. Chamar `EnterPlanMode`
+2. Chamar `EnterPlanMode` (não AskUserQuestion para aprovação)
 3. **AGUARDAR aprovacao do user**
+
+**Nota:** EnterPlanMode é para aprovar o PLANO. Decisões pendentes devem ser resolvidas ANTES via AskUserQuestion (Passo 8).
 
 ---
 

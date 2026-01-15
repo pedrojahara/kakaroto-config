@@ -3,15 +3,23 @@
 ## Passo 0: Context
 
 Contexto de projeto ja carregado em 01-interview (mesma sessao).
-Buscar apenas patterns para reutilizacao:
 
+### 0.1 Carregar Respostas da Interview
+```
+Read .claude/interviews/current.md
+```
+Este arquivo contém: perguntas respondidas, decisões implícitas, termos-chave.
+**Usar como referência** para manter consistência com o que foi acordado.
+
+### 0.2 Buscar Patterns (se necessário)
 ```
 mcp__memory__search_nodes({ query: "pattern" })
 ```
 
-SE retomando sessao interrompida:
+### 0.3 SE retomando sessão interrompida
 ```
-Read .claude/specs/current.md (se existir)
+Read .claude/interviews/current.md (contexto original)
+Read .claude/specs/current.md (spec parcial, se existir)
 ```
 
 ---
@@ -38,7 +46,7 @@ Grep: termos da feature em services/, utils/, lib/
 Glob: arquivos com nomes similares
 ```
 
-### 1.2 Mapear Reutilização
+### 2.2 Mapear Reutilização
 | Necessidade | Código Existente | Ação |
 |-------------|------------------|------|
 | [o que precisa] | [arquivo:linha] | Reutilizar/Estender/Criar |
@@ -47,87 +55,14 @@ Glob: arquivos com nomes similares
 
 ---
 
-## Passo 2: Gerar Spec
+## Passo 3: Gerar Spec
 
-```markdown
-# Spec: [Nome da Feature]
-
-**Status:** Draft
-
-## Problema
-[1-2 frases - o problema, não a solução]
-
-## Solução
-[Descrição de alto nível]
-
-## Escopo
-
-### Inclui
-- [Deliverable 1]
-- [Deliverable 2]
-
-### Não Inclui
-- [O que não será feito]
-
-## Design Técnico
-
-### Dados
-[Estruturas, campos novos, tabelas]
-
-### Services
-| Service | Mudanças |
-|---------|----------|
-| [nome] | [o que muda] |
-
-### API (se aplicável)
-[Endpoints, signatures]
-
-### Tratamento de Erros
-| Cenário | Comportamento |
-|---------|---------------|
-| [erro] | [o que acontece] |
-
-### Reutilização Obrigatória
-| Existente | Uso |
-|-----------|-----|
-| [código] | [como usar] |
-
-### Justificativa para Código Novo
-| Novo Código | Por que não reutilizar existente? |
-|-------------|-----------------------------------|
-| [arquivo/função] | [justificativa] |
-
-## UI/UX (se aplicável)
-
-### Fluxo
-1. User faz X
-2. Sistema responde Y
-
-### Estados
-| Estado | Display |
-|--------|---------|
-| Loading | [desc] |
-| Empty | [desc] |
-| Error | [desc] |
-| Success | [desc] |
-
-## Edge Cases
-| Caso | Tratamento |
-|------|------------|
-| [edge] | [como tratar] |
-
-## Testes
-
-### Unitários (OBRIGATÓRIO)
-| Função | Arquivo Teste | Casos |
-|--------|---------------|-------|
-| [func] | [file.test.ts] | [casos] |
-
-## Decisões
-| Decisão | Justificativa |
-|---------|---------------|
-| [escolha] | [por quê] |
+Carregar template:
 ```
+Read ~/.claude/templates/spec-template.md
+```
+
+Preencher template com informações coletadas na interview.
 
 ---
 
@@ -138,7 +73,7 @@ Glob: arquivos com nomes similares
 
 ---
 
-## Passo 3: Persistir Spec
+## Passo 4: Persistir Spec
 
 1. Gerar slug: primeira palavra do problema + data
    Exemplo: `filtro-2026-01-10.md`
@@ -153,21 +88,10 @@ Glob: arquivos com nomes similares
 
 ---
 
-## Passo 4: Checkpoint
+## Passo 5: Checkpoint
 
-Atualizar TodoWrite com conclusao da spec:
-
-```javascript
-TodoWrite({
-  todos: [
-    // items anteriores como completed
-    { content: "Spec: especificacao gerada", status: "completed", activeForm: "Generating spec" },
-    { content: "Spec: reutilizacao mapeada", status: "completed", activeForm: "Mapping reuse" },
-    { content: "Spec: spec persistida em arquivo", status: "completed", activeForm: "Persisting spec" },
-    { content: "Planner: criar plano de tarefas", status: "pending", activeForm: "Creating plan" }
-  ]
-})
-```
+Usar TodoWrite para registrar items da fase Spec como "completed".
+Adicionar "Planner: criar plano de tarefas" como "pending".
 
 ---
 ## PROXIMA FASE

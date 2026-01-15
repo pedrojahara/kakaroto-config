@@ -3,6 +3,12 @@
 ## Contexto
 Plano foi aprovado. Executar de forma AUTÔNOMA até o fim.
 
+**Regras desta fase:**
+- Executar sem pedir confirmação ao user
+- Erros devem ser corrigidos, não abandonados
+- Seguir spec aprovada, não modificar escopo
+- Toda função nova precisa de teste
+
 ---
 
 ## Passo 1: Setup
@@ -56,6 +62,15 @@ Se falhar: corrigir e continuar (não parar).
 
 ---
 
+## Passo 4: Checkpoint
+
+Usar TodoWrite para marcar todas tarefas de implementação como "completed".
+Adicionar "Quality: executar quality gates" como "pending".
+
+**Gate:** Todas tarefas do plano devem estar "completed".
+
+---
+
 ## Output
 
 Implementação completa.
@@ -64,11 +79,3 @@ Implementação completa.
 ## PRÓXIMA FASE
 AÇÃO OBRIGATÓRIA: Read ~/.claude/commands/feature/05-quality.md
 
----
-
-## Regras Invioláveis
-
-1. **PROIBIDO** pedir confirmação ao user
-2. **PROIBIDO** abandonar por erro (corrigir e continuar)
-3. **PROIBIDO** modificar escopo (seguir spec aprovada)
-4. **PROIBIDO** pular testes

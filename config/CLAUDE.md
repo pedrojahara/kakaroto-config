@@ -22,3 +22,7 @@ Exceções: config files, .d.ts, UI puro sem lógica.
 ## Memory
 Namespace: ver CLAUDE.md do projeto.
 Sincronizar via `memory-sync` ao final de workflows.
+
+## Auto-Avaliacao
+Apos /feature e /debug: executar fase de avaliacao (07/06-evaluate).
+Dual-loop sequential thinking: diagnostico → sintese → propor melhorias ao user.

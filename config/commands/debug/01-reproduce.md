@@ -1,107 +1,107 @@
 # Fase 1: Reproduce
 
-## Passo 1: Carregar Contexto
+Responsabilidade: **ONDE** esta o bug + **COMO** reproduzir + **EVIDENCIA** concreta
+
+---
+
+## Passo 1: Triage
+
+Classificar o bug por keywords em $ARGUMENTS:
+
+| Categoria | Keywords |
+|-----------|----------|
+| Backend/Service | service, funcao, null, undefined, dados, firestore, db, retorna |
+| API/Endpoint | endpoint, API, request, response, 4xx, 5xx, validation, handler |
+| UI/Frontend | UI, componente, renderiza, tela, botao, estado, react, tsx |
+| Job/Cron | job, cron, schedule, nao executou, analytics, executor |
+| Integration | credencial, token, auth, OAuth, secret, API externa |
+| Test | teste, test, falha, assertion, mock, spec |
+| Infra/Deploy | VM, startup, env, terraform, deploy, container, docker, GCP, faltando |
+
+**SE** nenhuma keyword match → Default: **Backend/Service**
+
+```
+TRIAGE:
+Keywords encontradas: [...]
+Categoria: [Backend/API/UI/Job/Integration/Test/Infra]
+```
+
+---
+
+## Passo 2: Carregar Contexto
 
 ```
 mcp__memory__search_nodes({ query: "config" })
 mcp__memory__search_nodes({ query: "<termos-do-bug>" })
 ```
 
-Extrair termos relevantes de $ARGUMENTS e buscar bugs similares ja resolvidos.
-
 ---
 
-## Passo 2: Reproduzir Bug
+## Passo 3: Contexto Rapido
 
-### 2.1 Executar Passos
-Tentar reproduzir com informacoes fornecidas.
+### 3.1 Logs de Producao
 
-### 2.2 Documentar
-```
-REPRODUCAO:
-- Passos: [...]
-- Input: [...]
-- Output esperado: [...]
-- Output real: [...]
-- Reproduzido: SIM/NAO
+**SE** `.claude/debug-logs.json` existe e `enabled=true`:
+```bash
+{valor de commands.quick}
 ```
 
----
-
-## Passo 3: Verificar Estado Externo (SE web/scraping)
-
-**APENAS SE** o bug envolve: web scraping, Playwright, Puppeteer, seletores, ou interacao com paginas web externas.
-
-### 3.1 Verificar Antes de Assumir
+### 3.2 Exploracao Basica
 
 ```
-1. mcp__playwright__browser_navigate({ url: "[URL do bug]" })
-2. mcp__playwright__browser_wait_for({ time: 3 })
-3. mcp__playwright__browser_snapshot({})
+Grep: termos do bug em services/, api/, cron/, components/
+Glob: arquivos com nomes relacionados
 ```
 
-### 3.2 Comparar Estado Atual vs Esperado
-
-- O que o codigo espera encontrar?
-- O que realmente existe na pagina?
-- Quais seletores existem/mudaram?
-
-**PROIBIDO:** Assumir que "a pagina mudou" sem verificar.
-
----
-
-## Passo 4: Gate de Reproducao
-
-**SE** reproduziu com sucesso:
-- Prosseguir para Passo 5
-
-**SE NAO** reproduziu:
-- Usar `AskUserQuestion` para obter mais detalhes
-- Documentar o que foi tentado
-- NAO prosseguir ate reproduzir
-
----
-
-## Passo 5: Persistir Reproducao
-
-Salvar documentacao em `.claude/debug/reproduction.md`:
-
-```markdown
-# Reproducao: [descricao curta do bug]
-
-**Data:** [timestamp]
-**Bug:** [descricao original de $ARGUMENTS]
-
-## Passos de Reproducao
-1. [passo executado]
-2. [passo executado]
-
-## Input
-[dados de entrada usados]
-
-## Output Esperado
-[o que deveria acontecer]
-
-## Output Real
-[o que aconteceu - evidencia do bug]
-
-## Observacoes Iniciais
-[hipoteses formadas durante reproducao]
-
-## Estado Externo (se aplicavel)
-[observacoes do Playwright/browser]
+```
+LOCALIZACAO:
+Arquivos candidatos: [arquivo1.ts, arquivo2.ts]
+Funcoes suspeitas: [funcao1(), funcao2()]
 ```
 
 ---
 
-## Passo 6: Checkpoint
+## Passo 4: Executar Playbook
+
+ACAO: Read ~/.claude/commands/debug/playbooks/{categoria}.md
+
+| Categoria | Playbook |
+|-----------|----------|
+| Backend/Service | backend.md |
+| API/Endpoint | api.md |
+| UI/Frontend | ui.md |
+| Job/Cron | job.md |
+| Integration | integration.md |
+| Test | test.md |
+| Infra/Deploy | infra.md |
+
+---
+
+## Passo 5: Criar Artefato
+
+ACAO: Read ~/.claude/commands/debug/templates/diagnosis-script.md
+
+---
+
+## Passo 6: Gate de Reproducao
+
+ACAO: Read ~/.claude/commands/debug/validators/evidence-requirements.md
+
+---
+
+## Passo 7: Persistir Reproducao
+
+ACAO: Read ~/.claude/commands/debug/templates/reproduction-doc.md
+
+---
+
+## Passo 8: Checkpoint
 
 ```javascript
 TodoWrite({
   todos: [
-    { content: "Reproduce: contexto carregado", status: "completed", activeForm: "Loading context" },
-    { content: "Reproduce: bug reproduzido", status: "completed", activeForm: "Reproducing bug" },
-    { content: "Reproduce: reproducao persistida", status: "completed", activeForm: "Persisting reproduction" },
+    { content: "Reproduce: triage + playbook", status: "completed", activeForm: "Bug triaged" },
+    { content: "Reproduce: artefato + evidencia", status: "completed", activeForm: "Evidence collected" },
     { content: "Investigate: analisar causa raiz", status: "pending", activeForm: "Analyzing root cause" }
   ]
 })
@@ -111,8 +111,10 @@ TodoWrite({
 
 ## Output
 
-Bug reproduzido e documentado em `.claude/debug/reproduction.md`.
+Bug reproduzido com evidencia em `.claude/debug/reproduction.md`.
 
 ---
+
 ## PROXIMA FASE
+
 ACAO OBRIGATORIA: Read ~/.claude/commands/debug/02-investigate.md

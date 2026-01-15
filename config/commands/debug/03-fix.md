@@ -1,54 +1,45 @@
 # Fase 3: Fix
 
-## Contexto
-Causa raiz identificada. Implementar fix de forma AUTONOMA.
+Responsabilidade: Implementar fix de forma AUTONOMA.
 
 ---
 
-## Passo 0: Gate de Criticidade
+## Passo 1: Validacao Pre-Fix
 
-### 0.1 Identificar Paths Afetados
+### 1.1 Revisao da Categorizacao
 
-Extrair arquivos da causa raiz documentada na investigacao (fase 02-investigate).
+Na fase Investigate voce categorizou seu fix como:
+- [ ] CORRECAO DE LOGICA → Prossiga
+- [ ] FILTRO/IGNORE → **PARE!** Volte para Investigate
+- [ ] WORKAROUND → **PARE!** Volte para Investigate
 
-### 0.2 Lista de Paths Criticos
+### 1.2 Gate para FILTRO/IGNORE
 
-```
-PATHS_CRITICOS:
-- **/auth/**
-- **/payment/**
-- **/migration*/**
-- **/oauth*
-- **/credential*
-- **/secret*
-- api/middleware.ts
-- services/*Service.ts (core services)
-```
+**SE** fix envolve adicionar a lista de ignore/skip/filter:
+1. Por que o erro esta sendo gerado em primeiro lugar?
+2. Esse padrao pode aparecer em erros legitimos?
+3. Existe forma de corrigir a logica em vez de filtrar?
 
-### 0.3 Decision Gate
-
-**SE** arquivos afetados ∩ PATHS_CRITICOS **nao vazio**:
-
-1. Documentar fix planejado:
-   - Causa raiz (com evidencia)
-   - Arquivos a modificar
-   - Mudancas propostas
-   - Riscos identificados
-
-2. Chamar `EnterPlanMode`
-   - Escrever plano de fix em `.claude/plans/debug-fix-{timestamp}.md`
-   - User aprova ou rejeita via ExitPlanMode
-
-3. Apos aprovacao: Prosseguir para Passo 1
-
-**SENAO** (nao critico):
-Prosseguir direto para Passo 1 (autonomia total)
+**SE nao conseguir justificar**: Volte para 02-investigate.md
 
 ---
 
-## Passo 1: Teste de Regressao
+## Passo 2: Gate de Criticidade
 
-### 1.1 Criar Teste que Reproduz o Bug
+ACAO: Read ~/.claude/commands/debug/validators/criticality-gate.md
+
+---
+
+## Passo 3: Gate de Permanencia
+
+ACAO: Read ~/.claude/commands/debug/validators/fix-permanence.md
+
+---
+
+## Passo 4: Teste de Regressao
+
+### 4.1 Criar Teste que Reproduz o Bug
+
 ```typescript
 describe('[contexto do bug]', () => {
   it('should [comportamento esperado]', () => {
@@ -59,7 +50,8 @@ describe('[contexto do bug]', () => {
 })
 ```
 
-### 1.2 Verificar que Teste FALHA
+### 4.2 Verificar que Teste FALHA
+
 ```bash
 npm test -- --testPathPattern="[arquivo]"
 ```
@@ -68,9 +60,8 @@ O teste DEVE falhar antes do fix. Se passar, o teste nao reproduz o bug.
 
 ---
 
-## Passo 2: Implementar Fix
+## Passo 5: Implementar Fix
 
-### 2.1 Fix Minimo
 ```
 FIX:
 Arquivo: [arquivo:linha]
@@ -79,34 +70,28 @@ Depois: [codigo novo]
 Justificativa: [por que resolve a causa raiz]
 ```
 
-### 2.2 Regras
+Regras:
 - APENAS o necessario para resolver a causa raiz
 - NAO refatorar codigo nao relacionado
-- NAO adicionar features
 - Seguir patterns existentes do projeto
 
 ---
 
-## Passo 3: Verificar Fix
+## Passo 6: Verificar Fix
 
-### 3.1 Teste Deve Passar
 ```bash
 npm test -- --testPathPattern="[arquivo]"
 ```
 
-### 3.2 Bug Nao Reproduz
-Executar passos originais. Bug nao deve ocorrer.
-
 ---
 
-## Passo 4: Checkpoint
+## Passo 7: Checkpoint
 
 ```javascript
 TodoWrite({
   todos: [
     { content: "Investigate: causa raiz identificada", status: "completed", activeForm: "Root cause identified" },
-    { content: "Fix: teste de regressao criado", status: "completed", activeForm: "Regression test created" },
-    { content: "Fix: correcao implementada", status: "completed", activeForm: "Fix implemented" },
+    { content: "Fix: teste + correcao implementada", status: "completed", activeForm: "Fix implemented" },
     { content: "Verify: validar quality gates", status: "pending", activeForm: "Validating quality gates" }
   ]
 })
@@ -119,5 +104,7 @@ TodoWrite({
 Fix implementado. Teste de regressao passando.
 
 ---
+
 ## PROXIMA FASE
+
 ACAO OBRIGATORIA: Read ~/.claude/commands/debug/04-verify.md

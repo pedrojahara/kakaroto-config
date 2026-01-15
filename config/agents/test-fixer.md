@@ -58,6 +58,30 @@ npm run test
 
 ---
 
+## Step Extra: CRUD Smoke Test (SE nova entidade)
+
+**Trigger:** Arquivo em `api/handlers/` com novo endpoint POST/PUT criado.
+
+1. Identificar endpoints novos:
+   ```bash
+   git diff --name-only HEAD~1 | grep 'api/handlers/'
+   ```
+
+2. Para cada arquivo de handler modificado:
+   - Buscar métodos POST/PUT/DELETE
+   - Construir payload de teste válido
+   - Executar request contra servidor local (se rodando)
+   - Verificar response 200/201
+
+3. Reportar:
+   - Endpoints testados
+   - Resultados (PASS/FAIL)
+   - Erros encontrados
+
+**Nota:** Este step é condicional. Só executar se houver novos endpoints CRUD.
+
+---
+
 ## Test Creation Guidelines
 
 ### File Location

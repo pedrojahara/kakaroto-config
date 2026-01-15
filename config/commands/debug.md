@@ -10,7 +10,7 @@ ACAO OBRIGATORIA: Read ~/.claude/commands/debug/01-reproduce.md
 Seguir instrucoes. Cada fase aponta para a proxima.
 
 ## Fluxo
-Reproduce → Investigate → Fix → Verify → Commit → Fim (SEM PARADAS)
+Reproduce → Investigate → Fix → Verify → Commit → Evaluate → Fim (SEM PARADAS)
 
 ## Regras
 1. ZERO paradas até o final

@@ -138,6 +138,23 @@ For each modified component file:
 
 ---
 
+### 6.5 Form Submit Test (SE form modificado)
+
+**Trigger:** Arquivo `*FormModal.tsx` ou `*Form.tsx` modificado.
+
+1. Identificar forms modificados via git diff
+2. Navegar ao form (browser_navigate)
+3. Preencher campos com dados válidos (browser_fill_form)
+4. Clicar submit
+5. Verificar:
+   - Sem erros de console
+   - Toast/mensagem de sucesso aparece
+   - Modal fecha ou redireciona
+
+**Nota:** Step condicional. Só executar se form de criação/edição foi modificado.
+
+---
+
 ### 7. Fix Loop (Max 3 Attempts)
 
 ```

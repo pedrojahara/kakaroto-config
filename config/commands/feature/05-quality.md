@@ -3,6 +3,8 @@
 ## Contexto
 Implementação completa. Executar quality gates de forma AUTÔNOMA.
 
+**Regra:** Não prosseguir com testes/build falhando.
+
 ---
 
 ## Passo 1: Agents de Qualidade
@@ -77,6 +79,16 @@ Task({
 })
 ```
 
+### 1.7 CRUD Validation (SE nova entidade)
+Apenas se criou novo endpoint CRUD em `api/handlers/`:
+```javascript
+Task({
+  subagent_type: "test-fixer",
+  prompt: "Executar CRUD smoke test. Para novos endpoints POST/PUT, testar criação e verificar response 200/201.",
+  description: "CRUD smoke test"
+})
+```
+
 ---
 
 ## Passo 2: Quality Gates Finais
@@ -114,9 +126,15 @@ Reportar ao user:
 
 ---
 
-## Regras Invioláveis
+## Passo 5: Checkpoint
 
-1. **PROIBIDO** pular agents de qualidade
-2. **PROIBIDO** prosseguir com testes falhando
-3. **PROIBIDO** prosseguir com build falhando
-4. **PROIBIDO** perguntar ao user (só reportar no final)
+Usar TodoWrite para marcar quality gates como "completed".
+Adicionar "Commit: commitar e fazer push" como "pending".
+
+**Gate:** Todos quality gates devem passar (test, tsc, build).
+
+---
+
+## PRÓXIMA FASE
+AÇÃO OBRIGATÓRIA: Read ~/.claude/commands/feature/06-commit.md
+

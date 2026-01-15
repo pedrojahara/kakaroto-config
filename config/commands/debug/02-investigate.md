@@ -1,76 +1,80 @@
 # Fase 2: Investigate
 
-## Passo 0: Context
-
-**SE** continuacao direta de 01-reproduce (mesma sessao):
-  Contexto ja disponivel, prosseguir.
-
-**SE** retomando sessao interrompida:
-```
-Read .claude/debug/reproduction.md
-```
+Responsabilidade: **POR QUE** o bug acontece + **CAUSA RAIZ**
 
 ---
 
-## Passo 1: Explorar Codigo Relacionado
+## Principio
 
-### 1.1 Buscar no Codebase
+> Fixes corrigem LOGICA, nao filtram SINTOMAS.
+> Antes de propor FILTRO/IGNORE: por que o erro e gerado em primeiro lugar?
+
+---
+
+## Passo 1: Context
+
+**SE** continuacao direta de 01-reproduce: Contexto ja disponivel.
+**SE** retomando sessao: `Read .claude/debug/reproduction.md`
+
+---
+
+## Passo 2: Explorar Codigo
+
 ```
 Grep: termos do bug
 Glob: arquivos com nomes relacionados
 git log --oneline --grep="fix" -- [arquivos suspeitos]
 ```
 
-### 1.2 Identificar
+Identificar:
 - Arquivos/funcoes envolvidos
 - Como erros sao tratados nesta area
 - Ha validacao que deveria existir?
-- Ha helper existente que resolve?
 
 ---
 
-## Passo 2: 5 Whys (Causa Raiz)
+## Passo 3: Rastreamento de Fluxo
 
-Para cada "Por que?", fornecer EVIDENCIA de codigo:
+**SE** bug envolve dados incorretos (null, undefined, formato invalido):
 
-```
-ANALISE DE CAUSA RAIZ:
-
-Sintoma: [o que esta acontecendo]
-
-Por que #1: [resposta]
-  Evidencia: [arquivo:linha] - [codigo]
-
-Por que #2: [resposta]
-  Evidencia: [arquivo:linha] - [codigo]
-
-Por que #3: [resposta]
-  Evidencia: [arquivo:linha] - [codigo]
-
-CAUSA RAIZ: [declaracao clara]
-```
+ACAO: Read ~/.claude/commands/debug/techniques/flow-tracing.md
 
 ---
 
-## Passo 3: Validar Causa Raiz
+## Passo 4: Geracao de Hipoteses
 
-A causa raiz deve ser:
-- [ ] Algo que voce pode MUDAR
-- [ ] Suportada por evidencia de codigo
-- [ ] Explica TODOS os sintomas
-
-**SE** nao validar: voltar ao Passo 2.
+ACAO: Read ~/.claude/commands/debug/techniques/hypothesis-generation.md
 
 ---
 
-## Passo 4: Checkpoint
+## Passo 5: Sequential Thinking
+
+ACAO: Read ~/.claude/commands/debug/techniques/sequential-thinking-config.md
+
+**SE** categoria = Infra/Deploy:
+Consultar secao "Fase: Investigate" em playbooks/infra.md
+
+---
+
+## Passo 6: Validar Causa Raiz
+
+ACAO: Read ~/.claude/commands/debug/validators/root-cause-validation.md
+
+---
+
+## Passo 7: Documentar Causa Raiz
+
+ACAO: Read ~/.claude/commands/debug/templates/root-cause-doc.md
+
+---
+
+## Passo 8: Checkpoint
 
 ```javascript
 TodoWrite({
   todos: [
     { content: "Reproduce: bug reproduzido", status: "completed", activeForm: "Bug reproduced" },
-    { content: "Investigate: codigo explorado", status: "completed", activeForm: "Code explored" },
-    { content: "Investigate: causa raiz identificada", status: "completed", activeForm: "Root cause identified" },
+    { content: "Investigate: causa raiz validada", status: "completed", activeForm: "Root cause validated" },
     { content: "Fix: implementar correcao", status: "pending", activeForm: "Implementing fix" }
   ]
 })
@@ -80,8 +84,10 @@ TodoWrite({
 
 ## Output
 
-Causa raiz documentada com evidencia.
+Causa raiz documentada em `.claude/debug/root-cause.md`.
 
 ---
+
 ## PROXIMA FASE
+
 ACAO OBRIGATORIA: Read ~/.claude/commands/debug/03-fix.md

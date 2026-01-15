@@ -1,114 +1,83 @@
 # Fase 1: Interview
 
-## Passo 1: Exploração Autônoma (ANTES de qualquer pergunta)
+## Passo 1: Entender o Request
 
-### 1.1 Carregar Contexto
-```
-mcp__memory__search_nodes({ query: "config" })
-mcp__memory__search_nodes({ query: "<termos-da-feature>" })
-```
-
-### 1.2 Explorar Codebase
-```
-Glob: **/*.ts, **/*.tsx
-Read: package.json, schema.prisma (se existir)
-Grep: termos relacionados à feature
-```
-
-### 1.3 Identificar Patterns
-- Como components similares funcionam
-- Como services são estruturados
-- Como erros são tratados
-- Como loading states funcionam
-
-**Você DEVE saber (não perguntar):**
-- Estrutura de pastas
-- Schema do banco
-- Libs disponíveis
-- Patterns existentes
+Analisar $ARGUMENTS para identificar:
+- Qual feature está sendo solicitada
+- Termos-chave para busca
+- Área provável do codebase (api/, components/, services/)
 
 ---
 
-## Passo 2: Reflexão (ANTES de perguntar)
+## Passo 2: Buscar Contexto Específico
+
+Baseado no Passo 1, carregar APENAS o necessário:
+
+### 2.1 Memory (se relevante)
+```
+mcp__memory__search_nodes({ query: "<termos-específicos-da-feature>" })
+```
+
+### 2.2 Codebase (áreas identificadas)
+```
+Grep: termos em <área-específica>/
+Read: arquivos diretamente relacionados
+```
+
+**Evitar:** `Glob: **/*.ts` ou buscas genéricas em todo codebase.
+
+---
+
+## Passo 3: Identificar Patterns (sob demanda)
+
+Após encontrar código relevante, identificar:
+- Como components/services similares funcionam
+- Como erros são tratados nessa área
+- Patterns específicos a seguir
+
+---
+
+## Passo 4: Reflexão
 
 Usar `mcp__sequential-thinking__sequentialthinking`:
 
-1. **O que descobri** - Síntese da exploração (patterns, services, schema encontrados)
-2. **O que ainda posso descobrir** - Gaps que consigo preencher explorando mais código
-3. **O que APENAS o user pode responder** - Decisões de produto, preferências de UX
-4. **Tentar descobrir o que falta** - Última tentativa autônoma antes de perguntar
-5. **Formular perguntas mínimas** - Só o essencial que não consegui descobrir
+1. **O que descobri** - Síntese do contexto carregado
+2. **O que ainda posso descobrir** - Gaps que consigo preencher explorando mais
+3. **O que APENAS o user pode responder** - Decisões de produto, preferências UX
+4. **Formular perguntas mínimas** - Só o essencial
 
-`totalThoughts`: 5
+`totalThoughts`: 4
 
 ---
 
-## Passo 3: Perguntas ao User (APENAS decisões de produto)
+## Passo 5: Perguntas ao User (APENAS decisões de produto)
 
 **Usar AskUserQuestion para todas as perguntas.**
 
-### 3.1 Problema e Escopo
-```javascript
-AskUserQuestion({
-  questions: [
-    {
-      question: "Qual problema principal essa feature resolve?",
-      header: "Problema",
-      multiSelect: false,
-      options: [
-        { label: "Eficiência", description: "Processo manual que precisa ser automatizado" },
-        { label: "Funcionalidade", description: "Capacidade que não existe hoje" },
-        { label: "UX", description: "Experiência que precisa melhorar" }
-      ]
-    },
-    {
-      question: "Qual escopo para primeira versão?",
-      header: "Escopo",
-      multiSelect: false,
-      options: [
-        { label: "MVP mínimo", description: "Só o essencial" },
-        { label: "MVP completo", description: "Casos principais cobertos" },
-        { label: "Feature completa", description: "Todos os casos de uso" }
-      ]
-    }
-  ]
-})
-```
+### Perguntas típicas (adaptar ao contexto):
+- **Problema**: Qual problema principal resolve? (Eficiência/Funcionalidade/UX)
+- **Escopo**: MVP mínimo ou feature completa?
+- **Design**: Tem referência ou seguir patterns existentes?
+- **Trade-offs**: Se encontrar 2 approaches, qual preferir?
 
-### 3.2 UX (se aplicável)
+Exemplo de uso:
 ```javascript
 AskUserQuestion({
   questions: [{
-    question: "Há design/mockup de referência?",
-    header: "Design",
-    multiSelect: false,
+    question: "[pergunta específica]",
+    header: "[2-3 palavras]",
     options: [
-      { label: "Sim, tenho", description: "Vou compartilhar" },
-      { label: "Seguir padrão", description: "Usar patterns do app" },
-      { label: "Proponha", description: "Quero sugestão" }
-    ]
-  }]
-})
-```
-
-### 3.3 Trade-offs (apenas se houver decisão com impacto)
-```javascript
-AskUserQuestion({
-  questions: [{
-    question: "Encontrei 2 approaches. Qual prefere?",
-    header: "Approach",
-    multiSelect: false,
-    options: [
-      { label: "Approach A", description: "[trade-off A]" },
-      { label: "Approach B", description: "[trade-off B]" }
-    ]
+      { label: "[opção]", description: "[trade-off]" },
+      { label: "[opção]", description: "[trade-off]" }
+    ],
+    multiSelect: false
   }]
 })
 ```
 
 ---
 
-## Passo 4: Apresentar Descobertas
+## Passo 6: Apresentar Descobertas
 
 Mostrar ao user:
 - Services/patterns encontrados
@@ -118,23 +87,46 @@ Mostrar ao user:
 
 ---
 
-## Passo 5: Checkpoint
+## Passo 7: Persistir Interview
 
-Usar TodoWrite para registrar conclusao da fase:
+### 7.1 Gerar slug
+Primeira palavra do problema + data. Exemplo: `filtro-2026-01-10.md`
 
-```javascript
-TodoWrite({
-  todos: [
-    { content: "Interview: contexto carregado", status: "completed", activeForm: "Loading context" },
-    { content: "Interview: codebase explorado", status: "completed", activeForm: "Exploring codebase" },
-    { content: "Interview: perguntas respondidas", status: "completed", activeForm: "Answering questions" },
-    { content: "Interview: descobertas documentadas", status: "completed", activeForm: "Documenting findings" },
-    { content: "Spec: gerar especificacao", status: "pending", activeForm: "Generating spec" }
-  ]
-})
+### 7.2 Salvar respostas
+```
+Write .claude/interviews/{slug}.md
+Write .claude/interviews/current.md (cópia do conteúdo)
 ```
 
-**Gate:** SE items de Interview nao estao "completed" → Completar antes de prosseguir
+### 7.3 Formato do arquivo
+```markdown
+# Interview: {feature-name}
+
+## Contexto Descoberto
+- Services encontrados: [lista]
+- Patterns identificados: [lista]
+- Código reutilizável: [arquivos:linhas]
+
+## Perguntas e Respostas
+| # | Pergunta | Resposta | Impacto na Implementação |
+|---|----------|----------|--------------------------|
+| 1 | [pergunta] | [resposta] | [como afeta] |
+
+## Decisões Implícitas
+- [decisões inferidas do contexto ou defaults do projeto]
+
+## Termos-chave para Busca
+- [termos que outras fases podem usar para grep/search]
+```
+
+---
+
+## Passo 8: Checkpoint
+
+Usar TodoWrite para registrar items da fase Interview como "completed".
+Adicionar "Spec: gerar especificacao" como "pending".
+
+**Gate:** Todos items de Interview devem estar "completed" E interviews/current.md deve existir.
 
 ---
 
