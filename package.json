@@ -5,6 +5,9 @@
   "bin": {
     "kakaroto-config": "./bin/install.js"
   },
+  "scripts": {
+    "release": "node bin/release.js"
+  },
   "files": [
     "bin",
     "config"
