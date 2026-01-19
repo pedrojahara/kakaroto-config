@@ -103,12 +103,11 @@ Este documento descreve a arquitetura de configuracao do Claude Code, otimizada 
 │   │
 │   └── gate.md              # /gate - quality gate completo
 │
-├── agents/                   # Subagentes especializados (7 agents)
-│   ├── code-reviewer.md     # Review + auto-fix
+├── agents/                   # Subagentes especializados (6 agents)
+│   ├── code-reviewer.md     # Review seguranca/tipagem + auto-fix
 │   ├── test-fixer.md        # Testes + auto-fix
 │   ├── visual-validator.md  # Playwright + auto-fix
-│   ├── code-simplifier.md   # Reducao de complexidade
-│   ├── dry-enforcer.md      # Detecta duplicacao
+│   ├── code-simplifier.md   # Clareza + DRY + reducao de complexidade
 │   ├── memory-sync.md       # Sincroniza MCP Memory
 │   └── terraform-validator.md # Valida env vars
 │
@@ -193,7 +192,7 @@ User: "adiciona filtro de data"
 ┌────────────────────────────────────────────────────────────────────────┐
 │   05-quality.md                                                         │
 │   → Invoca agents via Task tool (ordem atualizada):                     │
-│     test-fixer (baseline) → code-simplifier → dry-enforcer →            │
+│     test-fixer (baseline) → code-simplifier (DRY) →                     │
 │     test-fixer (verificacao) → code-reviewer →                          │
 │     visual-validator (se UI) → terraform-validator (se env)             │
 └───────────┬────────────────────────────────────────────────────────────┘
@@ -467,8 +466,7 @@ BLOCKING: true | false
 
 # Agents (invocados automaticamente ou via Task)
 test-fixer, code-reviewer, visual-validator,
-code-simplifier, dry-enforcer, memory-sync,
-terraform-validator
+code-simplifier, memory-sync, terraform-validator
 ```
 
 ---

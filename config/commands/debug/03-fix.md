@@ -38,19 +38,41 @@ ACAO: Read ~/.claude/commands/debug/validators/fix-permanence.md
 
 ## Passo 4: Teste de Regressao
 
-### 4.1 Criar Teste que Reproduz o Bug
+### 4.1 Usar Factories (se disponíveis)
+
+**ANTES** de criar mocks inline, verificar test-utils/:
 
 ```typescript
-describe('[contexto do bug]', () => {
-  it('should [comportamento esperado]', () => {
-    // Arrange: setup que causa o bug
-    // Act: acao que dispara o bug
+// ✅ Correto - usar factory centralizada
+import { createBlogPost, createCampaign } from '../test-utils/factories';
+
+describe('regression: bug-name', () => {
+  const post = createBlogPost({ /* setup que causava bug */ });
+  // ...
+});
+
+// ❌ Errado - criar objeto inline
+const post = {
+  id: 'test',
+  // ... 20+ campos duplicados
+};
+```
+
+### 4.2 Criar Teste que Reproduz o Bug
+
+```typescript
+describe('regression: [nome descritivo do bug]', () => {
+  it('should [comportamento esperado após fix]', () => {
+    // Arrange: setup que causa o bug (usar factories!)
+    // Act: ação que dispara o bug
     // Assert: verificar comportamento correto
   })
 })
 ```
 
-### 4.2 Verificar que Teste FALHA
+**Naming:** Usar `describe('regression: ...')` para identificar testes de regressão.
+
+### 4.3 Verificar que Teste FALHA
 
 ```bash
 npm test -- --testPathPattern="[arquivo]"

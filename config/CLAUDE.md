@@ -26,3 +26,14 @@ Sincronizar via `memory-sync` ao final de workflows.
 ## Auto-Avaliacao
 Apos /feature e /debug: executar fase de avaliacao (07/06-evaluate).
 Dual-loop sequential thinking: diagnostico → sintese → propor melhorias ao user.
+
+## Workflow Recovery
+
+**Pós-compaction:** SE output do hook mostra `WORKFLOW RECOVERY REQUIRED`:
+
+1. `Read .claude/workflow-state.json`
+2. `Read ~/.claude/commands/feature/{currentPhase}.md`
+3. `Read` artefatos não-null: interview, analysis, contract, spec, plan
+4. Retomar de `lastStep` usando `resumeHint`
+
+**AUTOMÁTICO** - não perguntar ao user, apenas retomar.

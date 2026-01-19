@@ -37,19 +37,19 @@ Identificar:
 
 **SE** bug envolve dados incorretos (null, undefined, formato invalido):
 
-ACAO: Read ~/.claude/commands/debug/techniques/flow-tracing.md
+ACAO: Read ~/.claude/techniques/flow-tracing.md
 
 ---
 
 ## Passo 4: Geracao de Hipoteses
 
-ACAO: Read ~/.claude/commands/debug/techniques/hypothesis-generation.md
+ACAO: Read ~/.claude/techniques/hypothesis-generation.md
 
 ---
 
 ## Passo 5: Sequential Thinking
 
-ACAO: Read ~/.claude/commands/debug/techniques/sequential-thinking-config.md
+ACAO: Read ~/.claude/techniques/sequential-thinking-config.md
 
 **SE** categoria = Infra/Deploy:
 Consultar secao "Fase: Investigate" em playbooks/infra.md

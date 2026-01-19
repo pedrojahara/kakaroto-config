@@ -75,7 +75,7 @@ Based on changes detected, invoke appropriate agents **using Task tool with suba
 **IMPORTANTE:** Todos os agents sao TOTALMENTE AUTONOMOS - eles irao identificar E CORRIGIR problemas automaticamente.
 
 **Ordem de execucao:**
-`test-fixer (baseline) -> code-simplifier -> dry-enforcer -> test-fixer (verificacao) -> code-reviewer -> visual-validator (se UI) -> terraform-validator (se env)`
+`test-fixer (baseline) -> code-simplifier (inclui DRY) -> test-fixer (verificacao) -> code-reviewer -> visual-validator (se UI) -> terraform-validator (se env)`
 
 ### 3.1 Test Fixer (BASELINE)
 
@@ -91,28 +91,18 @@ Garantir que codigo implementado passa nos testes ANTES de refatorar.
 
 **If tests fail:** Fix before proceeding. NAO prosseguir ate baseline passar.
 
-### 3.2 Code Simplification
+### 3.2 Code Simplification (inclui DRY)
 
 **Invoke:** `Task` tool with `subagent_type: code-simplifier`
 
 **Expected output:**
 - Dead code removed
 - Naming improved
-- Structure simplified
-- Magic values extracted
+- Structure simplified (nesting, function length)
+- Duplications replaced with calls to existing utils/services
+- Reimplementations flagged and fixed
 
-### 3.3 DRY Analysis
-
-**Invoke:** `Task` tool with `subagent_type: dry-enforcer`
-
-**Expected output:**
-- Unused existing code that should have been used
-- Duplications within new code
-- Abstraction opportunities
-
-**If issues found:** Fix before proceeding.
-
-### 3.4 Test Fixer (VERIFICACAO)
+### 3.3 Test Fixer (VERIFICACAO)
 
 Garantir que refatoracoes nao quebraram nada.
 
@@ -127,7 +117,7 @@ Garantir que refatoracoes nao quebraram nada.
 
 **If tests fail:** Fix before proceeding.
 
-### 3.5 Code Review
+### 3.4 Code Review
 
 **Invoke:** `Task` tool with `subagent_type: code-reviewer`
 
@@ -139,7 +129,7 @@ Garantir que refatoracoes nao quebraram nada.
 
 **If CRITICAL issues found:** Fix before proceeding.
 
-### 3.6 Visual Validation (SE UI)
+### 3.5 Visual Validation (SE UI)
 
 **Detect UI changes:**
 ```bash
@@ -164,7 +154,7 @@ git diff origin/main...HEAD --name-only | grep -E '\.(tsx|css|scss)$' | grep -v 
 
 **If FAIL after 3 attempts:** BLOCK gate, report errors to user.
 
-### 3.7 Environment Validation (SE env)
+### 3.6 Environment Validation (SE env)
 
 **Detect env changes:**
 ```bash
@@ -200,8 +190,7 @@ Collect results from all agents (na ordem de execucao):
 | Agent | Status | Issues Found | Fixed |
 |-------|--------|--------------|-------|
 | test-fixer (baseline) | PASS/FAIL | X | X |
-| code-simplifier | PASS/FAIL | X | X |
-| dry-enforcer | PASS/FAIL | X | X |
+| code-simplifier (DRY) | PASS/FAIL | X | X |
 | test-fixer (verificacao) | PASS/FAIL | X | X |
 | code-reviewer | PASS/FAIL | X | X |
 | visual-validator | SKIP/PASS/FAIL | X | X |
@@ -249,8 +238,7 @@ Gerar relatorio consolidado:
 | Agent | Status | Issues Found | Fixed |
 |-------|--------|--------------|-------|
 | test-fixer (baseline) | [PASS/FAIL] | X | X |
-| code-simplifier | [PASS/FAIL] | X | X |
-| dry-enforcer | [PASS/FAIL] | X | X |
+| code-simplifier (DRY) | [PASS/FAIL] | X | X |
 | test-fixer (verificacao) | [PASS/FAIL] | X | X |
 | code-reviewer | [PASS/FAIL] | X | X |
 | visual-validator | [SKIP/PASS/FAIL] | X | X |

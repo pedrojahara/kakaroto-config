@@ -31,7 +31,7 @@ O fix proposto sobrevive a:
 **SE** qualquer resposta = NAO:
 - Fix e PALIATIVO (sera perdido)
 - **OBRIGATORIO**: Voltar para Investigate
-- ACAO: Read ~/.claude/commands/debug/techniques/flow-tracing.md (Passo 4.1)
+- ACAO: Read ~/.claude/techniques/flow-tracing.md (Passo 4.1)
 
 ---
 

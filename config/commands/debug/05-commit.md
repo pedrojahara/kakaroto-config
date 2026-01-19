@@ -48,7 +48,7 @@ Sincronizar conhecimento adquirido durante debug (NÃO bugs - esses são efêmer
 ```javascript
 Task({
   subagent_type: "memory-sync",
-  prompt: "Sincronizar knowledge graph após debug. IMPORTANTE: NÃO salvar o bug em si. Salvar apenas: patterns descobertos, fluxos entendidos, procedimentos documentados, decisões arquiteturais. Se nenhum conhecimento novo significativo foi adquirido, reportar 'Sem alterações'.",
+  prompt: "Sincronizar knowledge graph após debug. Agent fará skip automático se mudança trivial. IMPORTANTE: NÃO salvar o bug em si. Salvar apenas: patterns descobertos, procedimentos documentados, decisões arquiteturais.",
   description: "Sync memory graph"
 })
 ```

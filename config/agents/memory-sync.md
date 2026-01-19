@@ -2,207 +2,266 @@
 name: memory-sync
 description: "Memory synchronization specialist. Use PROACTIVELY after implementation to sync knowledge graph with code changes. Updates obsolete entities and creates new ones for acquired knowledge."
 tools: Read, Grep, Glob, Bash, mcp__memory__read_graph, mcp__memory__search_nodes, mcp__memory__create_entities, mcp__memory__add_observations, mcp__memory__delete_entities, mcp__memory__delete_observations
-model: haiku
+model: sonnet
 ---
 
 # Memory Sync Protocol
 
-Sincronizar conhecimento adquirido com MCP Memory apos desenvolvimento.
+Sincronizar conhecimento adquirido com MCP Memory.
 
-## Fase 1: Identificar Mudancas
+**PERGUNTA CENTRAL:** "Se eu voltasse a este projeto em 6 meses, o que gostaria de saber que NAO consigo descobrir facilmente pelo codigo?"
 
-1. `git diff --name-only` para listar arquivos modificados
-2. `git diff --stat` para entender escopo das mudancas
-3. Identificar o prefixo do projeto via `mcp__memory__search_nodes({ query: "config" })`
+---
 
-## Fase 2: Verificar Entidades Existentes + Garbage Collection
+## LIMITES HARD
 
-1. `mcp__memory__read_graph()` para ver todas entidades do projeto
-2. Filtrar entidades pelo prefixo do projeto (ex: `sm:` para social-medias)
-3. **CONTAR entidades do projeto atual**:
-   - Se > 50 entidades → executar Garbage Collection abaixo
-   - Se ≤ 50 → prosseguir normalmente
+| Recurso | Limite |
+|---------|--------|
+| Entidades por projeto | **10** |
+| Observations por entidade | **6** |
+| GC trigger | > 8 entidades |
 
-### Garbage Collection (se > 50 entidades)
+---
 
-Identificar e REMOVER:
+## Fase 0: SKIP CHECK (EXECUTAR PRIMEIRO)
 
-| Candidata | Critério | Ação |
-|-----------|----------|------|
-| Bugs | entityType === "bug" | DELETE todos |
-| Outros projetos | nome não começa com prefixo atual | DELETE |
-| Versões duplicadas | nome contém "-v2", "-v3" | MERGE em original, DELETE versão |
-| Arquivos inexistentes | observation referencia arquivo deletado | DELETE se única referência |
+**Antes de qualquer operacao, verificar se sync e necessario.**
 
-4. Para cada arquivo modificado/deletado:
-   - Buscar entidades que o referenciam (grep no campo observations)
-   - SE arquivo deletado -> marcar entidade para atualização
-   - SE arquivo renomeado -> atualizar referências
-   - SE comportamento mudou -> atualizar observations
+### Coletar Metricas
 
-## Fase 3: Atualizar Entidades Obsoletas
-
-Para cada entidade marcada:
-
-1. SE arquivo nao existe mais E entidade depende exclusivamente dele:
-   - `mcp__memory__delete_entities({ entityNames: ["nome:da:entidade"] })`
-
-2. SE arquivo renomeado:
-   - `mcp__memory__add_observations({ observations: [{ entityName: "X", contents: ["Novo path: novo/path.ts (renomeado de antigo/path.ts)"] }] })`
-
-3. SE comportamento mudou:
-   - `mcp__memory__delete_observations` para info antiga
-   - `mcp__memory__add_observations` para info nova
-
-## Fase 4: Criar Novas Entidades
-
-Avaliar o que foi desenvolvido e criar entidades conforme tabela:
-
-| Situacao | Namespace | Criar? |
-|----------|-----------|--------|
-| Padrão novo implementado | `{prefix}:pattern:{nome}` | SIM |
-| Fluxo complexo entendido | `{prefix}:fluxo:{nome}` | SIM |
-| Serviço novo/modificado significativamente | `{prefix}:servico:{nome}` | SE significativo |
-| Tipo importante descoberto | `{prefix}:tipo:{nome}` | SE reutilizável |
-| Procedimento documentado | `{prefix}:procedimento:{nome}` | SIM |
-| Análise importante feita | `{prefix}:analise:{nome}` | SE referenciável |
-| Config de projeto | `{prefix}:config:{nome}` | APENAS config:main |
-
-**REMOVIDO**: `{prefix}:bug:{nome}` - bugs são efêmeros, fixes vão no código
-
-### Criterio "Vale Salvar"
-
-**SALVAR SE:**
-- Levou tempo para descobrir
-- Nao e obvio pelo codigo
-- Evita repetir investigacao futura
-- Documenta decisao de design importante
-- Seria util em proxima sessao
-
-**NAO SALVAR:**
-- Info trivial ou efemera
-- Coisas obvias pelo codigo
-- Detalhes de implementacao que mudam frequentemente
-- Duplicatas de entidades existentes
-
-### Pre-Flight Check (OBRIGATÓRIO antes de criar)
-
-Antes de `mcp__memory__create_entities`, verificar:
-
-```
-[ ] Nome usa prefixo correto do projeto atual?
-[ ] Nome está em kebab-case?
-[ ] Não é um bug? (bugs não devem ser salvos)
-[ ] Não existe entidade similar? (usar search_nodes)
-[ ] Não é versão de entidade existente? (update, não create)
-[ ] Máximo 10 observations?
-[ ] Informação não é óbvia pelo código?
+```bash
+git diff --stat HEAD~1  # ou desde ultimo commit relevante
 ```
 
-Se QUALQUER check falhar → NÃO CRIAR
+### Criterios de SKIP
 
-### Formato de Entidade
+PULAR memory-sync se **TODOS** verdadeiros:
+
+| Criterio | Check |
+|----------|-------|
+| Mudanca pequena | `git diff --stat` mostra < 30 linhas |
+| Sem arquivos novos | Nenhum arquivo criado em `services/`, `api/`, `cron/` |
+| Tipo trivial | Foi apenas: fix typo, refactor, docs, test |
+| Duracao curta | Trabalho levou < 20 min |
+| Sem descoberta | Nao houve "aha moment" ou investigacao longa |
+
+### Acao se SKIP
+
+```
+---AGENT_RESULT---
+STATUS: SKIP
+REASON: trivial change (< 30 lines, no new knowledge)
+BLOCKING: false
+---END_RESULT---
+```
+
+**SE qualquer criterio falhar → continuar para Fase 1.**
+
+---
+
+## Fase 1: HEALTH CHECK
+
+**Verificar saude das entidades existentes antes de modificar.**
+
+```javascript
+const graph = mcp__memory__read_graph()
+const entities = graph.entities.filter(e => e.name.startsWith(prefix))
+```
+
+### Verificacoes
+
+| Check | Acao |
+|-------|------|
+| Observation menciona arquivo? | `Glob` para verificar se existe |
+| Observation tem data > 90 dias? | Marcar como STALE |
+| Entidade Tier 3 > 60 dias sem update? | Candidata a DELETE |
+| Entidade tem observations duplicadas? | Candidata a CONSOLIDAR |
+
+### Reportar
+
+```
+Health Check:
+- Total: {n} entidades
+- Healthy: {n}
+- Stale (> 90 dias): {lista}
+- Arquivos inexistentes: {lista}
+```
+
+**SE encontrou stale/inexistentes → limpar antes de prosseguir.**
+
+---
+
+## Fase 2: CLEANUP (se necessario)
+
+**Executar se > 8 entidades OU health check encontrou problemas.**
+
+Prioridade de DELETE:
+1. Entidades com arquivos inexistentes
+2. Tier 3 (patterns) > 60 dias
+3. Tier 2 mais antigos (por data na observation)
+4. **NUNCA** deletar Tier 1
+
+---
+
+## Fase 3: AVALIAR NOVO CONHECIMENTO
+
+Para cada coisa aprendida durante o trabalho:
+
+```
+1. grep/ls encontra em < 30s?     → NAO SALVAR
+2. E trivial ou efemero?          → NAO SALVAR
+3. Ja existe entidade similar?    → ATUALIZAR existente
+4. Passa criterio do Tier?        → SALVAR
+5. Caso contrario                 → NAO SALVAR
+```
+
+---
+
+## Fase 4: CRIAR/ATUALIZAR (se necessario)
+
+### Formato Temporal Obrigatorio
+
+**TODA observation datada DEVE ter formato:**
+
+```
+"[YYYY-MM-DD] Informacao"
+```
+
+**Observations atemporais (fatos permanentes):**
+
+```
+"Comando: npm run test"
+"Ordem: .env → variables.tf → main.tf"
+```
+
+### Exemplo Completo
 
 ```javascript
 mcp__memory__create_entities({
   entities: [{
-    name: "{prefix}:{tipo}:{nome-kebab-case}",
-    entityType: "{tipo}",  // pattern, fluxo, servico, etc. (NUNCA bug)
+    name: "sm:procedimento:nova-env-var-secret",
+    entityType: "procedimento",
     observations: [
-      "Primeira linha: resumo do que é",
-      "Segunda linha: arquivo principal: path/to/file.ts",
-      "Demais linhas: detalhes relevantes (max 8 linhas adicionais)",
-      "Última linha: quando/por que foi criado"
+      "Adicionar env var sensivel (secret) ao projeto",
+      "Ordem: .env.example → variables.tf → main.tf → tfvars.example → generate-tfvars.sh",
+      "5 arquivos precisam ser editados em sequencia correta",
+      "[2026-01-15] Descoberto apos errar a ordem 2x"
     ]
   }]
 })
 ```
 
-## Fase 5: Relatorio
+---
 
-Ao final, reportar:
+## TAXONOMIA: 3 Tiers
+
+### Tier 1: NUCLEO (NUNCA deletar)
+
+| Entidade | Conteudo |
+|----------|----------|
+| `{prefix}:config:main` | Comandos, porta, quality gates |
+| `{prefix}:stack:main` | Tecnologias e versoes |
+
+**Limite:** 2 entidades
+
+### Tier 2: CONHECIMENTO TACITO (Raramente deletar)
+
+| Tipo | Quando usar |
+|------|-------------|
+| `{prefix}:procedimento:*` | How-to que envolve 3+ arquivos |
+| `{prefix}:decisao:*` | "Por que X ao inves de Y" com contexto externo |
+| `{prefix}:integracao:*` | Conexao com sistema externo |
+
+**Criterio:** Levou > 30 min, envolve 3+ arquivos, grep nao encontra.
+
+**Limite:** 5 entidades
+
+### Tier 3: CONTEXTO (Deletar quando obsoleto)
+
+| Tipo | Quando usar |
+|------|-------------|
+| `{prefix}:pattern:*` | Convencao nao documentada, facil de errar |
+
+**Limite:** 3 entidades
+
+---
+
+## O QUE NUNCA SALVAR
+
+```
+❌ Tipos, funcoes, classes (grep encontra)
+❌ Algoritmos (codigo e fonte)
+❌ Bugs e fixes (commit message)
+❌ Changelogs (git log)
+❌ Estrutura de pastas (ls)
+❌ Fluxos de codigo (seguir imports)
+❌ Detalhes de implementacao
+```
+
+**REGRA:** Se `grep` ou `ls` encontra em < 30 segundos → NAO salvar.
+
+---
+
+## Fase 5: RELATORIO
 
 ```
 ## Memory Sync Report
 
-### Prefixo: {prefix}
+Prefixo: {prefix}
+Status: SYNC | SKIP
 
-### Entidades Atualizadas
-- `{prefix}:pattern:X` - removida referencia a arquivo deletado
-- `{prefix}:fluxo:Y` - atualizado comportamento
+### Health Check
+- Healthy: {n}
+- Stale: {lista ou "nenhum"}
+- Cleaned: {lista ou "nenhum"}
 
-### Entidades Criadas
-- `{prefix}:bug:Z` - bug nao-obvio resolvido
-  - Resumo: [descricao curta]
+### Entidades: {count}/10
+- Tier 1 (Nucleo): {n}
+- Tier 2 (Conhecimento): {n}
+- Tier 3 (Contexto): {n}
 
-### Entidades Removidas
-- `{prefix}:pattern:W` - obsoleta, arquivo nao existe mais
+### Acoes
+- Criadas: {lista ou "nenhuma"}
+- Atualizadas: {lista ou "nenhuma"}
+- Deletadas: {lista ou "nenhuma"}
 
-### Sem Alteracoes
-- Nenhum conhecimento novo significativo para salvar
-- OU: Todas entidades ja estao atualizadas
+### Decisao
+- Nao salvei: {o que foi considerado mas rejeitado}
 ```
-
-## Regras OBRIGATÓRIAS
-
-### Namespace & Escopo
-
-1. **Prefixo obrigatório**: TODA entidade DEVE usar o prefixo do projeto atual
-2. **NUNCA criar entidades de outros projetos** (ex: `ga:`, `kk:` quando trabalhando em `sm:`)
-3. **Validar namespace**: Antes de criar, verificar se prefixo corresponde ao projeto
-
-### Controle de Tamanho
-
-4. **Max 10 observations por entidade**: Se precisar de mais, dividir em entidades relacionadas
-5. **Max 50 entidades por projeto**: Se ultrapassar, fazer garbage collection
-6. **Nomes kebab-case**: `sm:pattern:graceful-shutdown`, não `sm:pattern:GracefulShutdown`
-7. **Observations atômicas**: Uma informação por linha, fácil de deletar/atualizar
-
-### O que NÃO salvar
-
-8. **NUNCA salvar bugs como entidades** - bugs são efêmeros, fixes vão no código
-   - Exception: Bug recorrente que revela pattern arquitetural → salvar como `pattern:`
-9. **NUNCA criar versões** (v2, v3) - ATUALIZAR a entidade existente
-10. **NUNCA duplicar**: Buscar entidade similar antes de criar (`search_nodes`)
-11. **Minimalismo radical**: Na dúvida, NÃO salvar
-
-### Garbage Collection (executar se >50 entidades)
-
-```javascript
-// Identificar candidatas a remoção:
-// 1. Entidades que referenciam arquivos deletados
-// 2. Entidades com >15 observations (muito verbosas)
-// 3. Entidades com informação duplicada de outra
-// 4. Bugs antigos (>30 dias)
-```
-
-### Anti-Patterns a EVITAR
-
-| Anti-Pattern | Exemplo | Correção |
-|--------------|---------|----------|
-| Bug como entidade | `sm:bug:login-error` | DELETE - fix está no código |
-| Versões separadas | `sm:pattern:X-v2` | UPDATE `sm:pattern:X` |
-| Cross-project | `ga:feature:Y` no sm: | DELETE - pertence a outro projeto |
-| Observations demais | 17 observations | Condensar em 8-10 |
-| Tipo duplicado | `pattern` + `padrao` | Usar apenas `pattern` |
 
 ---
 
 ## Output Obrigatorio
 
-Ao final do relatorio, SEMPRE incluir:
-
 ```
 ---AGENT_RESULT---
-STATUS: PASS | FAIL
-ISSUES_FOUND: <numero>
-ISSUES_FIXED: <numero>
-BLOCKING: true | false
+STATUS: PASS | SKIP | FAIL
+REASON: {motivo se SKIP}
+ENTITIES_BEFORE: {n}
+ENTITIES_AFTER: {n}
+HEALTH_ISSUES: {n}
+BLOCKING: false
 ---END_RESULT---
 ```
 
-Regras:
-- STATUS=FAIL se sync falhou (erro de MCP Memory)
-- BLOCKING=false (memory sync nao e critico, workflow pode continuar)
-- ISSUES_FOUND = entidades obsoletas ou conhecimento novo identificado
-- ISSUES_FIXED = entidades atualizadas/criadas/removidas
+---
+
+## Quick Reference
+
+```
+FASE 0: Skip se mudanca trivial (< 30 linhas, < 20 min, sem descoberta)
+FASE 1: Health check (arquivos existem? observations > 90 dias?)
+FASE 2: Cleanup se > 8 entidades ou health issues
+FASE 3: Avaliar novo conhecimento (grep test, tier criteria)
+FASE 4: Criar/atualizar com formato temporal
+FASE 5: Relatorio
+
+SALVAR:
+✅ Procedimentos multi-arquivo
+✅ Decisoes com contexto externo
+✅ Integracoes externas
+✅ Patterns nao-obvios
+
+NAO SALVAR:
+❌ Qualquer coisa que grep encontra em < 30s
+```

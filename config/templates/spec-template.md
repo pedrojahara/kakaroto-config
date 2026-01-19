@@ -1,92 +1,106 @@
 # Spec: [Nome da Feature]
 
-**Status:** Draft
+## Metadata
+- **Data:** [YYYY-MM-DD]
+- **Interview:** `.claude/interviews/[slug].md`
+- **Acceptance Criteria Source:** Interview Fase 1
 
-## Problema
-[1-2 frases - o problema, não a solução]
+---
 
-## Solução
-[Descrição de alto nível]
+## Resumo
 
-## Escopo
+[1-2 frases descrevendo o que a feature faz]
 
-### Inclui
-- [Deliverable 1]
-- [Deliverable 2]
+---
 
-### Não Inclui
-- [O que não será feito]
+## Componentes
 
-## Design Técnico
+| Componente | Tipo | Descrição |
+|------------|------|-----------|
+| [nome] | Service/Handler/Component | [descrição] |
 
-### Dados
-[Estruturas, campos novos, tabelas]
+---
 
-### Services
-| Service | Mudanças |
-|---------|----------|
-| [nome] | [o que muda] |
+## Código a Reutilizar
 
-### API (se aplicável)
-[Endpoints, signatures]
+| Necessidade | Código Existente | Ação |
+|-------------|------------------|------|
+| [o que precisa] | [arquivo:linha] ou "Não existe" | Reutilizar/Estender/Criar |
 
-### Tratamento de Erros
-| Cenário | Comportamento |
-|---------|---------------|
-| [erro] | [o que acontece] |
+---
 
-### Reutilização Obrigatória
-| Existente | Uso |
-|-----------|-----|
-| [código] | [como usar] |
+## Test Cases
 
-### Justificativa para Código Novo
-| Novo Código | Por que não reutilizar existente? |
-|-------------|-----------------------------------|
-| [arquivo/função] | [justificativa] |
+### Acceptance Tests (OBRIGATÓRIOS)
 
-## UI/UX (se aplicável)
+| Acceptance Criterion (user) | Acceptance Test | Tipo |
+|-----------------------------|-----------------|------|
+| "[criterion 1 - linguagem do user]" | `it('[comportamento observável]')` | Integration/E2E |
+| "[criterion 2 - linguagem do user]" | `it('[comportamento observável]')` | Integration/E2E |
 
-### Fluxo
-1. User faz X
-2. Sistema responde Y
+**Validação mental:** Se este teste passar, o user validaria manualmente e ficaria satisfeito? ✓
 
-### Estados
-| Estado | Display |
-|--------|---------|
-| Loading | [desc] |
-| Empty | [desc] |
-| Error | [desc] |
-| Success | [desc] |
+### Unit Tests (se lógica complexa)
 
-## Edge Cases
-| Caso | Tratamento |
-|------|------------|
-| [edge] | [como tratar] |
+| Função | Test Case | Input → Output |
+|--------|-----------|----------------|
+| `[função]` | `[caso]` | `[input]` → `[output]` |
 
-## Testes
+### Integration Tests (se multi-serviço)
 
-### Unitários (OBRIGATÓRIO)
-| Função | Arquivo Teste | Casos |
-|--------|---------------|-------|
-| [func] | [file.test.ts] | [casos] |
+| Fluxo | Serviços Envolvidos | Mock Strategy |
+|-------|---------------------|---------------|
+| `[fluxo]` | `[serviços]` | `[o que mockar]` |
 
-### API/Integração (SE CRUD)
-| Endpoint | Método | Casos |
-|----------|--------|-------|
-| [/api/X] | [POST] | [criar, validação 400, erro 500] |
+### E2E Tests (se UI)
 
-### E2E/Smoke (SE UI)
-| Fluxo | Verificação |
-|-------|-------------|
-| [Criar via form] | [Entidade aparece na lista] |
+| Fluxo | Steps | Verificação |
+|-------|-------|-------------|
+| `[fluxo]` | `[passos]` | `[assertion]` |
 
-### Infraestrutura (SE Banco)
-| Recurso | Configuração |
-|---------|--------------|
-| [Collection X] | [Índice: accountId + createdAt DESC] |
+---
 
-## Decisões
-| Decisão | Justificativa |
-|---------|---------------|
-| [escolha] | [por quê] |
+## Mock Strategy
+
+| Test Case | Mock Level | Serviços Mockados |
+|-----------|------------|-------------------|
+| [acceptance test 1] | integration | [apenas externos obrigatórios] |
+| [unit test 1] | unit | - |
+
+### Princípio de Mocks
+
+- **Acceptance Tests:** Mínimo de mocks (apenas serviços externos obrigatórios)
+- **Unit Tests:** Liberado para isolar
+
+---
+
+## Arquivos a Criar/Modificar
+
+| Arquivo | Ação | Descrição |
+|---------|------|-----------|
+| `[path]` | Criar/Modificar | `[descrição]` |
+
+---
+
+## Dependências
+
+- [ ] Nenhuma nova dependência
+- [ ] Nova dependência: `[nome]` - Motivo: [explicação]
+
+---
+
+## Riscos Identificados
+
+| Risco | Mitigação |
+|-------|-----------|
+| [risco] | [como mitigar] |
+
+---
+
+## Checklist de Spec
+
+- [ ] Todos Acceptance Criteria têm Acceptance Test correspondente
+- [ ] Acceptance Tests validam comportamento observável (não implementação)
+- [ ] Mocks para Acceptance Tests são mínimos
+- [ ] Código existente foi mapeado para reutilização
+- [ ] Arquivos a criar/modificar estão listados
