@@ -31,13 +31,35 @@ Three phases, each with isolated context. A spec file is the single boundary obj
 
 | Condition | Action |
 |-----------|--------|
-| No spec exists | `Skill("build-understand", args: "{slug} {$ARGUMENTS}")` |
+| No spec OR Status: DRAFTING | `Skill("build-understand", args: "{slug} {$ARGUMENTS}")` |
+| Status: SPEC_APPROVED | Execute Verification Gate below |
 | Status: BUILDING | `Skill("build-implement", args: "{slug}")` |
 | Status: CERTIFYING | Execute Phase 3 below |
 | Status: DONE | Inform user, offer `/ship` |
 
-After Phase 1 returns → immediately invoke Phase 2.
-After Phase 2 returns → immediately execute Phase 3.
+After any Skill returns or Gate completes:
+1. Re-read `.claude/build/{slug}/spec.md` Status field
+2. Route according to the Phase Routing table above
+
+Never assume the next phase — always check Status.
+
+---
+
+## Verification Gate
+
+This gate runs inline when Status is `SPEC_APPROVED`. Do NOT skip this gate.
+
+1. Read the spec at `.claude/build/{slug}/spec.md`
+2. Extract the `## Verification` section
+3. Present each verification to the user via `AskUserQuestion`:
+   - List each verification (V1–Vn) with its type and what it checks
+   - For feature-specific verifications (V4+), explain WHY this verification proves the feature works
+   - Ask: "These verifications will prove the feature is complete. The build agent cannot finish until ALL pass. Add, remove, or change any?"
+   - Options: "Approve verifications", "Change verifications"
+4. If changes requested: update the spec's Verification section and re-present step 3
+5. After approval: update spec `Status: SPEC_APPROVED` → `Status: BUILDING`
+6. Generate `.claude/build/verify.sh` following the template and rules in `.claude/skills/build/verify-template.md`
+7. Re-read Status and route according to the Phase Routing table (will match BUILDING → build-implement)
 
 ---
 
