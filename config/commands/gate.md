@@ -75,7 +75,7 @@ Based on changes detected, invoke appropriate agents **using Task tool with suba
 **IMPORTANTE:** Todos os agents sao TOTALMENTE AUTONOMOS - eles irao identificar E CORRIGIR problemas automaticamente.
 
 **Ordem de execucao:**
-`test-fixer (baseline) -> code-simplifier (inclui DRY) -> test-fixer (verificacao) -> code-reviewer -> visual-validator (se UI) -> terraform-validator (se env)`
+`test-fixer (baseline) -> code-simplifier (inclui DRY) -> test-fixer (verificacao) -> code-reviewer -> functional-validator (se UI) -> terraform-validator (se env)`
 
 ### 3.1 Test Fixer (BASELINE)
 
@@ -138,7 +138,7 @@ git diff origin/main...HEAD --name-only | grep -E '\.(tsx|css|scss)$' | grep -v 
 
 **If UI files found:**
 
-**Invoke:** `Task` tool with `subagent_type: visual-validator`
+**Invoke:** `Task` tool with `subagent_type: functional-validator`
 
 **Expected output:**
 - All pages load without console errors
@@ -193,7 +193,7 @@ Collect results from all agents (na ordem de execucao):
 | code-simplifier (DRY) | PASS/FAIL | X | X |
 | test-fixer (verificacao) | PASS/FAIL | X | X |
 | code-reviewer | PASS/FAIL | X | X |
-| visual-validator | SKIP/PASS/FAIL | X | X |
+| functional-validator | SKIP/PASS/FAIL | X | X |
 | terraform-validator | SKIP/PASS/FAIL | X | X |
 
 ---
@@ -241,7 +241,7 @@ Gerar relatorio consolidado:
 | code-simplifier (DRY) | [PASS/FAIL] | X | X |
 | test-fixer (verificacao) | [PASS/FAIL] | X | X |
 | code-reviewer | [PASS/FAIL] | X | X |
-| visual-validator | [SKIP/PASS/FAIL] | X | X |
+| functional-validator | [SKIP/PASS/FAIL] | X | X |
 | terraform-validator | [SKIP/PASS/FAIL] | X | X |
 
 ### Quality Gates

@@ -36,41 +36,41 @@ The installer will detect the existing `.claude/` folder and ask if you want to 
 .claude/
 ├── CLAUDE.md              # Global rules (autonomy, coding standards)
 ├── ARCHITECTURE.md        # Full documentation of the system
-├── commands/              # Skills (invoked via /skill)
-│   ├── feature.md         # /feature orchestrator
-│   ├── feature/           # 7 phases: interview → spec → plan → implement → quality → commit → evaluate
-│   ├── debug.md           # /debug orchestrator
-│   ├── debug/             # 6 phases + playbooks, techniques, templates, validators
+├── skills/                # Skill workflows (invoked via /skill)
+│   ├── build/SKILL.md     # /build - feature implementation
+│   ├── build-understand/  # Phase: deep requirements gathering
+│   └── build-implement/   # Phase: autonomous implementation
+├── commands/              # Commands (invoked via /command)
+│   ├── resolve.md         # /resolve orchestrator
+│   ├── resolve/           # 2 phases: understand → resolve
 │   └── gate.md            # /gate - quality gate before PR
-├── agents/                # 7 specialized subagents
-│   ├── test-fixer.md
-│   ├── code-reviewer.md
-│   ├── code-simplifier.md
-│   ├── dry-enforcer.md
-│   ├── visual-validator.md
-│   ├── terraform-validator.md
-│   └── memory-sync.md
-└── templates/             # Spec templates
-    └── spec-template.md
+└── agents/                # 7 specialized subagents
+    ├── build-implementer.md
+    ├── test-fixer.md
+    ├── code-reviewer.md
+    ├── code-simplifier.md
+    ├── functional-validator.md
+    ├── terraform-validator.md
+    └── memory-sync.md
 ```
 
-## Skills (Commands)
+## Skills & Commands
 
-| Skill | Trigger | Description |
-|-------|---------|-------------|
-| `/feature` | "adicionar", "implementar", "criar" | Full feature workflow with spec, planning, and quality gates |
-| `/debug` | "bug", "erro", "problema" | Bug resolution with 5 Whys methodology |
-| `/gate` | Manual | Run all 7 quality agents before PR |
+| Name | Type | Trigger | Description |
+|------|------|---------|-------------|
+| `/build` | Skill | "adicionar", "implementar", "criar" | Full feature workflow: understand → implement → quality |
+| `/resolve` | Command | "bug", "erro", "problema" | Bug resolution: understand → resolve |
+| `/gate` | Command | Manual | Run quality agents before PR |
 
 ## Agents (Subagents)
 
 | Agent | Purpose |
 |-------|---------|
+| `build-implementer` | Autonomous implementation from spec, codes until tests pass |
 | `test-fixer` | Runs tests, fixes failures, creates missing tests |
 | `code-reviewer` | Reviews code quality, security, auto-fixes issues |
 | `code-simplifier` | Reduces complexity, improves readability |
-| `dry-enforcer` | Detects duplication, suggests code reuse |
-| `visual-validator` | Validates UI with Playwright |
+| `functional-validator` | Validates UI with Playwright (auto-triggered on .tsx/.css changes) |
 | `terraform-validator` | Validates env vars and Terraform consistency |
 | `memory-sync` | Syncs knowledge to MCP Memory |
 
@@ -113,34 +113,29 @@ Create `.claude/commands/your-skill.md` for project-specific workflows.
 
 ## Workflow Examples
 
-### Feature Development
+### Feature Development (/build)
 
 ```
 User: "adiciona filtro de data na listagem"
          ↓
-Claude automatically triggers /feature
+Claude automatically triggers /build
          ↓
-01-interview → Explores codebase, asks clarifying questions
-02-spec      → Generates technical specification
-03-planner   → Creates implementation plan (requires approval)
-04-implement → Writes code following spec and plan
-05-quality   → Runs all 7 quality agents
+build-understand → Deep requirements gathering, hypothesis diversification
+build-implement  → Autonomous implementation until tests pass
+quality          → Runs quality agents
          ↓
 Ready for PR
 ```
 
-### Bug Resolution
+### Bug Resolution (/resolve)
 
 ```
 User: "erro ao salvar formulario"
          ↓
-Claude automatically triggers /debug
+Claude automatically triggers /resolve
          ↓
-01-reproduce   → Reproduces the bug
-02-investigate → 5 Whys analysis with evidence
-03-fix         → Minimal fix + mandatory test
-04-verify      → Confirms fix works
-05-commit      → Creates commit
+01-understand → Reproduces and investigates the bug
+02-resolve    → Fixes with minimal change + mandatory test
          ↓
 Done
 ```
@@ -149,7 +144,7 @@ Done
 
 - Claude Code CLI
 - MCP Memory server (optional, for knowledge persistence)
-- Playwright MCP (optional, for visual validation)
+- Playwright MCP (optional, for functional validation)
 
 ## Development
 
@@ -169,9 +164,10 @@ This command will:
 
 **Files synced:**
 - `CLAUDE.md`, `ARCHITECTURE.md`
-- `commands/` (all skills)
+- `skills/` (build workflows)
+- `commands/` (resolve, gate)
 - `agents/` (all subagents)
-- `templates/`
+- `templates/` (if present)
 
 **Files excluded:**
 - `audit-command/` (personal)

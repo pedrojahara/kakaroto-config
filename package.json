@@ -1,7 +1,7 @@
 {
   "name": "kakaroto-config",
-  "version": "1.0.6",
-  "description": "Claude Code configuration by Pedro Jahara - autonomous workflows for /feature, /debug, /gate",
+  "version": "1.0.7",
+  "description": "Claude Code configuration by Pedro Jahara - autonomous workflows for /build, /resolve, /gate",
   "bin": {
     "kakaroto-config": "bin/install.js"
   },

@@ -137,8 +137,11 @@ async function main() {
   // Count files to sync
   const commandsCount = countFiles(path.join(HOME_CLAUDE, 'commands'), EXCLUDED_COMMANDS);
   const agentsCount = countFiles(path.join(HOME_CLAUDE, 'agents'));
-  const templatesCount = countFiles(path.join(HOME_CLAUDE, 'templates'));
-  const totalFiles = commandsCount + agentsCount + templatesCount + 2; // +2 for CLAUDE.md and ARCHITECTURE.md
+  const skillsCount = countFiles(path.join(HOME_CLAUDE, 'skills'));
+  const templatesCount = fs.existsSync(path.join(HOME_CLAUDE, 'templates'))
+    ? countFiles(path.join(HOME_CLAUDE, 'templates'))
+    : 0;
+  const totalFiles = commandsCount + agentsCount + skillsCount + templatesCount + 2; // +2 for CLAUDE.md and ARCHITECTURE.md
 
   // Show preview
   console.log('This will:');
@@ -147,7 +150,10 @@ async function main() {
   console.log(`     - ARCHITECTURE.md`);
   console.log(`     - commands/ (${commandsCount} files, excluding audit-command)`);
   console.log(`     - agents/ (${agentsCount} files)`);
-  console.log(`     - templates/ (${templatesCount} files)`);
+  console.log(`     - skills/ (${skillsCount} files)`);
+  if (templatesCount > 0) {
+    console.log(`     - templates/ (${templatesCount} files)`);
+  }
   console.log(`  2. Bump version: ${currentVersion} → ${newVersion}`);
   console.log(`  3. Git commit and push`);
   console.log(`  4. Publish to npm\n`);
@@ -165,6 +171,7 @@ async function main() {
   // Clean directories
   cleanDir(path.join(CONFIG_DIR, 'commands'));
   cleanDir(path.join(CONFIG_DIR, 'agents'));
+  cleanDir(path.join(CONFIG_DIR, 'skills'));
   cleanDir(path.join(CONFIG_DIR, 'templates'));
 
   // Ensure config directory exists
@@ -204,6 +211,12 @@ async function main() {
     path.join(CONFIG_DIR, 'agents')
   );
 
+  console.log('Copying skills/...');
+  copyRecursive(
+    path.join(HOME_CLAUDE, 'skills'),
+    path.join(CONFIG_DIR, 'skills')
+  );
+
   if (fs.existsSync(path.join(HOME_CLAUDE, 'templates'))) {
     console.log('Copying templates/...');
     copyRecursive(
@@ -219,7 +232,7 @@ async function main() {
   console.log(`Updated package.json: ${currentVersion} → ${newVersion}`);
 
   // Git operations - selective add to avoid committing session data
-  if (!execCommandSafe('git', ['add', 'config/', 'package.json'], 'Staging changes')) {
+  if (!execCommandSafe('git', ['add', 'config/', 'package.json', 'bin/', 'README.md'], 'Staging changes')) {
     rl.close();
     process.exit(1);
   }

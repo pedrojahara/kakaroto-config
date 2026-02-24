@@ -41,7 +41,7 @@ Prioriza código legível e explícito sobre soluções compactas.
 - **Remover código comentado**: Git é o histórico
 - **Eliminar dead code**: Imports não usados, variáveis órfãs
 
-### DRY (Absorvido do dry-enforcer)
+### DRY
 
 - **Reimplementações**: Código novo que duplica utils existentes → substituir
 - **Duplicações**: Mesmo código em múltiplos arquivos → unificar

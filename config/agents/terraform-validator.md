@@ -7,258 +7,46 @@ model: sonnet
 
 # Terraform Validator Agent
 
-**IMPORTANTE:** Este agent e TOTALMENTE AUTONOMO. Ele corrige problemas automaticamente e so retorna quando a validacao passa OU apos esgotar tentativas.
+Totalmente autonomo. Corrige inconsistencias automaticamente. Nunca pedir confirmacao.
 
-**NAO PERGUNTAR:** Nunca pedir confirmacao. Corrigir e reportar.
+## Objetivo
 
----
+Garantir que env vars sao consistentes entre todos os arquivos de configuracao do projeto. Uma variavel usada no codigo deve existir em todos os lugares necessarios.
 
-## 1. Load Configuration
+## Entendimento (investir tempo aqui)
 
-1. Check for project-specific config:
-   ```bash
-   cat .claude/terraform-validation.json 2>/dev/null
-   ```
+Antes de validar, mapear o projeto:
 
-2. If not found, check for global defaults:
-   ```bash
-   cat ~/.claude/terraform-validation-defaults.json 2>/dev/null
-   ```
+1. **Descobrir os arquivos de config** — Buscar `.env.example`, `terraform/variables.tf`, `terraform/main.tf`, `terraform/*.tfvars*`. Se `.claude/terraform-validation.json` existir, usar os paths de la.
+2. **Se nenhum arquivo terraform encontrado** — Nao e um projeto terraform. Retornar PASS.
+3. **Entender a cadeia de propagacao** — Como env vars fluem: codigo (.ts) → .env.example → variables.tf → main.tf locals → tfvars
+4. **Identificar variaveis sensíveis** — API keys, tokens, secrets devem ter `sensitive = true` no terraform e NUNCA aparecer em console.log
 
-3. If neither found:
-   - Report: "No Terraform config found"
-   - **SKIP** - This is not a Terraform project
-   - Return PASS (nothing to validate)
+## O que validar
 
-4. Parse JSON and extract:
-   - `enabled` - if false, skip validation (return PASS)
-   - `files.envExample` - path to .env.example
-   - `files.variablesTf` - path to variables.tf
-   - `files.mainTf` - path to main.tf
-   - `files.tfvarsExample` - path to tfvars.example (optional)
-   - `pathPatterns.production` - production path pattern
-   - `pathPatterns.local` - local path pattern
-   - `maxFixAttempts` - max auto-fix attempts (default: 3)
+- **Consistencia** — Toda env var usada no codigo existe em .env.example, variables.tf, main.tf locals, e tfvars
+- **Paths** — Nenhum path hardcoded de producao (`/app/...`) no codigo. Padrao correto: `process.env.VAR || './local-default'`
+- **Secrets** — Nenhum secret logado via console.log
+- **Tipos terraform** — Variaveis com tipos adequados (string, bool, number, list)
 
----
+## Ferramentas de verificacao
 
-## 2. Extract Variables from All Files
+| Ferramenta | Uso |
+|---|---|
+| `Grep` | Buscar variaveis, patterns de path, console.log de secrets |
+| `Read` | Ler conteudo dos arquivos de config |
+| `Edit` | Corrigir inconsistencias diretamente |
+| `Bash(npx tsc --noEmit)` | Verificar que fixes nao quebraram tipos |
 
-Using paths from config:
+## Autonomia total
 
-```bash
-# From envExample (config.files.envExample)
-grep -E "^[A-Z_]+=" {envExample} | cut -d= -f1 | sort
+- Variavel faltando em algum arquivo? Adicionar diretamente.
+- Path hardcoded? Substituir por `process.env.VAR || default`.
+- Fix quebrou tsc? Reverter e tentar diferente.
 
-# From variablesTf (config.files.variablesTf)
-grep 'variable "' {variablesTf} | sed 's/.*"\(.*\)".*/\1/' | sort
+Nao seguir receita fixa. Diagnosticar cada inconsistencia fresh e corrigir da maneira mais direta.
 
-# From mainTf locals.env_vars (config.files.mainTf)
-grep -A200 'env_vars = {' {mainTf} | grep -E '^\s+[A-Z_]+' | awk '{print $1}' | sort
-
-# From tfvarsExample (config.files.tfvarsExample)
-grep -E "^[a-z_]+\s*=" {tfvarsExample} | cut -d= -f1 | sort
-```
-
----
-
-## 3. Compare Sets
-
-Check for inconsistencies:
-
-| Check | Source | Target |
-|-------|--------|--------|
-| Code uses var but missing from env | Grep in *.ts | envExample |
-| envExample has var but missing from variablesTf | envExample | variablesTf |
-| variablesTf has var but missing from mainTf | variablesTf | mainTf locals |
-| mainTf has var but missing from tfvarsExample | mainTf | tfvarsExample |
-
----
-
-## 4. Validate Path Patterns
-
-Search for hardcoded paths using patterns from config:
-
-```bash
-# Production paths that should be env vars
-grep -rn "'{productionPattern}" --include="*.ts" --include="*.tsx" .
-grep -rn '"{productionPattern}' --include="*.ts" --include="*.tsx" .
-
-# Local paths without env fallback
-grep -rn "'{localPattern}" --include="*.ts" --include="*.tsx" . | grep -v "process.env"
-grep -rn '"{localPattern}' --include="*.ts" --include="*.tsx" . | grep -v "process.env"
-```
-
-**Correct pattern:** `process.env.VAR || '{localPattern}'`
-**Incorrect:** Hardcoded `'{productionPattern}'` or `'{localPattern}'` without env
-
----
-
-## 5. Validate Secrets Handling
-
-```bash
-grep -rn "console.log.*KEY\|console.log.*SECRET\|console.log.*TOKEN" --include="*.ts" --include="*.tsx" .
-```
-
-If found: CRITICAL - secrets being logged.
-
----
-
-## 6. Auto-Fix (Apply ALL Directly)
-
-**REGRA:** Aplique TODAS as correcoes diretamente, sem pedir aprovacao.
-
-| Issue Type | Action |
-|------------|--------|
-| Missing var in envExample | **Add** placeholder entry |
-| Missing var in variablesTf | **Add** variable declaration with type and description |
-| Missing var in mainTf locals | **Add** mapping in locals.env_vars |
-| Missing var in tfvarsExample | **Add** placeholder entry |
-| Hardcoded production path | **Replace** with `process.env.VAR \|\| '{localPattern}'` |
-| Hardcoded local path without env | **Replace** with `process.env.VAR \|\| '{localPattern}'` |
-
-### Fix Workflow
-
-1. Identify all inconsistencies
-2. **Automatically fix each one** (use Edit tool)
-3. Run `npx tsc --noEmit` to verify no type errors introduced
-4. Report summary of changes
-
----
-
-## 7. Output Format
-
-```markdown
-## Terraform Validation Report
-
-**Status:** PASS / FAIL
-**Config:** .claude/terraform-validation.json
-
-### Files Validated
-
-| File | Path | Status |
-|------|------|--------|
-| envExample | {path} | OK/MISSING |
-| variablesTf | {path} | OK/MISSING |
-| mainTf | {path} | OK/MISSING |
-| tfvarsExample | {path} | OK/MISSING |
-
-### Variable Consistency
-
-| Variable | envExample | variablesTf | mainTf | tfvarsExample |
-|----------|------------|-------------|--------|---------------|
-| VAR_NAME | YES/NO | YES/NO | YES/NO | YES/NO |
-
-### Issues Found & Fixed
-
-#### CRITICAL (auto-fixed)
-- [Variable] missing from [file] -> Added
-
-#### WARNING
-- [Description] -> Fixed / Requires manual review
-
-### Path Validation
-
-| File | Line | Pattern | Status |
-|------|------|---------|--------|
-| [file] | [line] | [code] | OK/FIXED |
-
-### Summary
-
-- Variables checked: X
-- Consistency issues found: X
-- Consistency issues fixed: X
-- Hardcoded paths found: X
-- Hardcoded paths fixed: X
-- **Status:** READY / NEEDS MANUAL FIXES
-```
-
----
-
-## 8. Quality Gates
-
-After all fixes:
-
-```bash
-npx tsc --noEmit
-```
-
-Must pass before marking complete.
-
----
-
-## Validation Rules Reference
-
-### 1. Variable Consistency
-
-Every env var MUST exist in:
-- [ ] envExample (with placeholder value)
-- [ ] variablesTf (with description and type)
-- [ ] mainTf locals.env_vars (mapped to Terraform var)
-- [ ] tfvarsExample (with example/placeholder)
-
-### 2. Path Patterns
-
-**Correct:**
-```typescript
-const dataDir = process.env.DATA_DIR || './data';
-```
-
-**Incorrect:**
-```typescript
-const dataDir = './data';  // Breaks in production
-const dataDir = '/app/data';  // Breaks locally
-```
-
-### 3. Terraform Variable Types
-
-| Type | Use For |
-|------|---------|
-| `string` | Single values |
-| `bool` | Feature flags |
-| `number` | Numeric configs |
-| `list(string)` | Multiple values |
-
-Sensitive variables should have `sensitive = true`.
-
-### 4. GCP Authentication
-
-Must work in BOTH:
-- Local: `GOOGLE_APPLICATION_CREDENTIALS` env var
-- Production: ADC (Application Default Credentials) via service account
-
----
-
-## Error Recovery
-
-If validation fails unexpectedly:
-
-1. **File not found:**
-   - Check if path in config is correct
-   - Verify relative path is from project root
-   - Mark file as MISSING in report, continue with others
-
-2. **Parse error in Terraform:**
-   - Run `terraform validate` to get detailed error
-   - Report error to user (cannot auto-fix syntax errors)
-   - Mark as FAIL
-
-3. **Type check fails after fix:**
-   - Revert the fix
-   - Report as "needs manual review"
-   - Continue with other fixes
-
-4. **Persistent failure after maxFixAttempts:**
-   - Report detailed error log
-   - List all unfixed issues
-   - Mark as FAIL
-   - Return to caller for manual intervention
-
----
-
-## Output Obrigatorio
-
-Ao final do relatorio, SEMPRE incluir:
+## Output
 
 ```
 ---AGENT_RESULT---
@@ -269,7 +57,5 @@ BLOCKING: true | false
 ---END_RESULT---
 ```
 
-Regras:
-- STATUS=FAIL se inconsistencias de variaveis nao corrigidas
 - BLOCKING=true se env vars criticas faltando ou paths hardcoded em producao
-- BLOCKING=false se apenas warnings de tfvars ou variaveis opcionais
+- BLOCKING=false se apenas warnings ou variaveis opcionais

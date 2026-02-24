@@ -78,7 +78,8 @@ async function main() {
   console.log(`This will install the following to ${targetPath}:`);
   console.log('  - CLAUDE.md (rules)');
   console.log('  - ARCHITECTURE.md (documentation)');
-  console.log('  - commands/ (skills: /feature, /debug, /gate)');
+  console.log('  - commands/ (commands: /resolve, /gate)');
+  console.log('  - skills/ (workflows: /build)');
   console.log('  - agents/ (7 specialized subagents)\n');
 
   const fileCount = countFiles(CONFIG_DIR);
@@ -108,8 +109,8 @@ async function main() {
     console.log('\n✅ Installation complete!\n');
     console.log('Next steps:');
     console.log('  1. Open any project with Claude Code');
-    console.log('  2. Try /feature to create a new feature');
-    console.log('  3. Try /debug to fix a bug');
+    console.log('  2. Try /build to create a new feature');
+    console.log('  3. Try /resolve to fix a bug');
     console.log('  4. Try /gate before creating a PR\n');
     console.log(`Read ${targetDisplay}ARCHITECTURE.md for full documentation.\n`);
   } catch (err) {
