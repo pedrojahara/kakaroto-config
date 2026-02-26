@@ -11,6 +11,7 @@
 ├── skills/             (invocados via /skill, context fork)
 │   ├── build/SKILL.md  (orquestrador)
 │   ├── build-understand/SKILL.md
+│   ├── build-verify/SKILL.md
 │   └── build-implement/SKILL.md
 ├── agents/             (invocados via Task tool)
 │   ├── code-reviewer, test-fixer, code-simplifier
@@ -30,9 +31,10 @@ Projetos adicionam `projeto/.claude/commands/` para skills locais (ex: `/deploy`
 
 | Fase | Arquivo | Acao |
 |------|---------|------|
-| Understand | `build-understand/SKILL.md` | Explora codebase, MCP Memory, AskUserQuestion |
-| Implement | `build-implement/SKILL.md` | Lanca `build-implementer` agent ate testes passarem |
-| Evaluate | (inline Phase 3) | ST dual-loop: diagnostico → sintese → melhorias |
+| Understand | `build-understand/SKILL.md` | Product surface, interview, understand requirements |
+| Verify Design | `build-verify/SKILL.md` | Design QA-style human-action verification scripts |
+| Implement | `build-implement/SKILL.md` | Code exploration, anti-anchoring, `build-implementer` agent |
+| Certify | (inline Phase 3) | Quality agents → deploy → re-verify contra producao |
 
 Routing: CLAUDE.md detecta trigger "criar/adicionar/implementar" → `/build`
 

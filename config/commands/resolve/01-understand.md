@@ -6,6 +6,18 @@ You are investigating a bug in a clean context. Your ONLY deliverable is a diagn
 
 Read the bug description from your launch prompt. That is your starting point.
 
+## Production Logs (MANDATORY for production bugs)
+
+BEFORE any code analysis, check if `.claude/debug-logs.json` exists in the project root.
+
+If it exists AND the bug involves production, a job, deploy, cron, or monitoring:
+1. Read the file — it contains pre-configured commands for querying production logs
+2. Run the "quick" command FIRST to get an overview of recent errors
+3. If relevant errors or trace IDs appear, run the "detailed" command
+4. Use log output as PRIMARY evidence — real production data outweighs code-reading speculation
+
+NEVER fabricate log output. If you cannot access logs or the command fails, document that honestly.
+
 ## How to Investigate
 
 Use any tools at your disposal. No prescribed steps. You decide the investigation path.
@@ -55,6 +67,14 @@ Write `.claude/resolve-diagnosis.md` with this structure (keep it compressed, ~1
 
 ## Bug
 <one-line summary>
+
+## Production Logs
+- Command run: `<exact command executed>`
+- Output:
+```
+<raw terminal output pasted here>
+```
+Or: "N/A — not a production bug" | "NOT AVAILABLE — <reason>"
 
 ## Root Cause
 <clear explanation of WHY the bug happens>

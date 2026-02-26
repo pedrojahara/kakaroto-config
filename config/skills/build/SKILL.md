@@ -1,6 +1,6 @@
 ---
 name: build
-description: "Agentic feature development. Understands deeply, builds freely, certifies quality."
+description: "Agentic feature development. Aligns with user, builds freely, certifies quality."
 disable-model-invocation: true
 model: opus
 allowed-tools:
@@ -17,11 +17,23 @@ allowed-tools:
   - mcp__memory__create_entities
   - mcp__memory__add_observations
   - mcp__sequential-thinking__sequentialthinking
+  - mcp__playwright__browser_navigate
+  - mcp__playwright__browser_snapshot
+  - mcp__playwright__browser_click
+  - mcp__playwright__browser_fill_form
+  - mcp__playwright__browser_type
+  - mcp__playwright__browser_wait_for
+  - mcp__playwright__browser_console_messages
+  - mcp__playwright__browser_close
+  - mcp__playwright__browser_take_screenshot
+  - mcp__playwright__browser_tabs
 ---
 
 # /build — Agentic Feature Development
 
 Three phases, each with isolated context. A spec file is the single boundary object.
+
+Lifecycle: `DRAFTING → UNDERSTOOD → VERIFIED → BUILDING → CERTIFYING → DONE`
 
 ## Phase Routing
 
@@ -32,93 +44,63 @@ Three phases, each with isolated context. A spec file is the single boundary obj
 | Condition | Action |
 |-----------|--------|
 | No spec OR Status: DRAFTING | `Skill("build-understand", args: "{slug} {$ARGUMENTS}")` |
-| Status: SPEC_APPROVED | Execute Verification Gate below |
+| Status: UNDERSTOOD | `Skill("build-verify", args: "{slug}")` |
+| Status: VERIFIED | Assert verify.sh exists, Status → BUILDING, route to build-implement (see below) |
 | Status: BUILDING | `Skill("build-implement", args: "{slug}")` |
 | Status: CERTIFYING | Execute Phase 3 below |
 | Status: DONE | Inform user, offer `/ship` |
 
-After any Skill returns or Gate completes:
+### VERIFIED Handler (inline)
+
+When Status is `VERIFIED`:
+1. Assert `.claude/build/verify.sh` exists (build-verify generates it).
+   If missing, error: re-invoke `Skill("build-verify", args: "{slug}")`.
+2. Update Status → `BUILDING`
+3. Re-read Status and route per Phase Routing table
+
+After any Skill returns:
 1. Re-read `.claude/build/{slug}/spec.md` Status field
 2. Route according to the Phase Routing table above
 
 Never assume the next phase — always check Status.
 
----
+### Guardrails
 
-## Verification Gate
-
-This gate runs inline when Status is `SPEC_APPROVED`. Do NOT skip this gate.
-
-1. Read the spec at `.claude/build/{slug}/spec.md`
-2. Extract the `## Verification` section
-3. Present each verification to the user via `AskUserQuestion`:
-   - List each verification (V1–Vn) with its type and what it checks
-   - For feature-specific verifications (V4+), explain WHY this verification proves the feature works
-   - Ask: "These verifications will prove the feature is complete. The build agent cannot finish until ALL pass. Add, remove, or change any?"
-   - Options: "Approve verifications", "Change verifications"
-4. If changes requested: update the spec's Verification section and re-present step 3
-5. After approval: update spec `Status: SPEC_APPROVED` → `Status: BUILDING`
-6. Generate `.claude/build/verify.sh` following the template and rules in `.claude/skills/build/verify-template.md`
-7. Re-read Status and route according to the Phase Routing table (will match BUILDING → build-implement)
+- NEVER write spec content (## What, ## Acceptance Criteria, ## Edge Cases, ## Verification) yourself. Sub-skills handle all spec content.
+- NEVER manually advance Status past a gate (DRAFTING→UNDERSTOOD or UNDERSTOOD→VERIFIED). Only sub-skills advance these statuses after their gates pass.
+- If a sub-skill completes but Status didn't advance as expected, re-invoke the same sub-skill (max 2 retries). If still stuck, escalate to user via AskUserQuestion.
 
 ---
 
 ## Phase 3: CERTIFY
 
-This phase runs inline (no context fork — it needs to see the full state).
+Runs inline (no context fork — needs full state).
 
-### 3.1 Confirmation Bias Check
+### 3.1 Quality Agents
 
-Read the spec's edge cases and acceptance criteria. Then read the test files.
-Ask yourself via Sequential Thinking:
-- Are there happy-path-only tests missing negative cases?
-- Which spec edge cases have NO corresponding test?
-- Are error paths actually tested or just try/catch wrappers?
+Run sequentially: `Task(code-simplifier)` → `Task(code-reviewer)`.
 
-If gaps found: write the missing tests. Run them.
-
-### 3.1.1 Verification Review
-
-Read the spec's `## Verification` section. For each entry, assess:
-
-- **command / server-command**: These ran automatically via verify.sh in Phase 2. Confirm they still pass by running `bash .claude/build/verify.sh`.
-- **playwright**: Read the evidence file. Assess whether the verification was substantive:
-  - Did the agent actually test the described flow (not just create a placeholder file)?
-  - Were interactive elements exercised (forms filled, buttons clicked, navigation verified)?
-  - Were errors or issues documented?
-
-If any playwright evidence is superficial or missing real verification: re-run it yourself using Playwright tools, then overwrite the evidence file with real results.
-
-### 3.2 Quality Agents (Sequential)
-
-```
-Task(code-simplifier) → wait for result → Task(code-reviewer) → wait for result
-```
-
-Parse `---AGENT_RESULT---` from each. If code-reviewer returns `STATUS: FAIL`:
-- Fix the blocking issues
-- Re-run `npm test -- --run` and `npx tsc --noEmit`
-- If still failing, re-invoke code-reviewer once more
-
-### 3.3 Final Gate
-
-All three must pass:
+If code-reviewer returns `STATUS: FAIL`: fix the identified issues, then re-run all checks:
 ```bash
 npm test -- --run
 npx tsc --noEmit
 npm run build
 ```
+Re-invoke code-reviewer. If same issues persist after 2 fixes, escalate remaining concerns to user via `AskUserQuestion`.
 
-If any fails: fix and retry (max 3 attempts). Do NOT skip.
+### 3.2 Deploy
+
+1. Commit (conventional commits style)
+2. `Skill("ship")` to deploy
+
+### 3.3 Production Verification
+
+Run ALL spec verifications with Playwright against the **PRODUCTION URL**. For each: follow the human-steps from spec's `## Verification`, write evidence to the specified path.
+
+If a verification fails, fix and re-deploy. If the same approach fails twice, try a different approach. Only escalate to user when genuinely stuck.
 
 ### 3.4 Wrap Up
 
-1. Commit all changes with a descriptive message (conventional commits style)
-2. If meaningful architectural decisions or patterns were established, invoke `Task(memory-sync)`
-3. Update spec Status → `DONE`
-4. Present summary to user:
-   - What was built (from spec)
-   - Files changed (`git diff --stat` against the branch base)
-   - Test coverage (which edge cases are tested)
-   - Any open concerns
-5. Offer next action: `/ship` for deploy, or manual review
+1. If meaningful architectural patterns established → `Task(memory-sync)`
+2. Status → `DONE`
+3. Present summary: what was built, files changed (`git diff --stat`), test coverage, production verification results, open concerns

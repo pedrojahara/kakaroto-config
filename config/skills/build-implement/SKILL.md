@@ -1,50 +1,43 @@
 ---
 name: build-implement
-description: "Autonomous feature implementation from spec. Builds until all tests pass."
+description: "Autonomous feature implementation from spec. Explores, challenges assumptions, builds until all tests pass."
 context: fork
 agent: build-implementer
 user-invocable: false
+model: opus
 ---
 
-# Phase 2: IMPLEMENT
+# IMPLEMENT — Build from Spec
 
 You receive `{slug}` from `$ARGUMENTS`.
 
+## Boundaries
+
+- **Authority:** You may ONLY set Status to `CERTIFYING`. Never write UNDERSTOOD, VERIFIED, DONE, or any other status.
+- **Autonomous:** No user interaction. Resolve ambiguities using the spec and the codebase.
+- **Contract:** `spec.md` is truth. If spec and codebase conflict, follow the spec.
+
 ## Setup
 
-1. Read `.claude/build/{slug}/spec.md` — this is your contract
-2. Read the project's `CLAUDE.md` — these are your constraints
-3. Search memory for relevant patterns: `mcp__memory__search_nodes({ query: "patterns" })`
+1. Read `.claude/build/{slug}/spec.md` — this is your contract (WHAT to build + HOW to verify)
+2. If the spec has a `## Source` section, read the referenced file — these are implementation hints, not constraints
+3. Read the project's `CLAUDE.md` — these are your constraints
+4. Search memory for relevant patterns: `mcp__memory__search_nodes({ query: "patterns" })`
+5. Find an exemplar feature similar to this request — study its anatomy (types → service → handler → tests → UI) before writing any code
 
 ## Anti-Anchoring
 
-Before writing code, use Sequential Thinking to challenge your first implementation instinct:
-- What assumptions am I making about the architecture?
-- Is there a simpler approach I'm not seeing?
-- Am I over-engineering or under-engineering?
-- What would break if my assumptions are wrong?
+Consider at least 2 implementation approaches before coding. Challenge your first instinct: what assumptions am I making? What breaks if I'm wrong? Use Sequential Thinking for complex decisions.
 
 ## Build
 
-You have complete freedom in HOW you implement. No prescribed methodology.
+Freedom in HOW. Hard constraints: spec acceptance criteria, CLAUDE.md conventions, verify.sh passes.
+Run `bash .claude/build/verify.sh` frequently as feedback loop. If the same approach fails twice, reconsider via Sequential Thinking.
 
-Your only hard constraints:
-- Follow the spec's acceptance criteria and edge cases
-- Follow CLAUDE.md project conventions
-- All verifications in `.claude/build/verify.sh` must pass — the Stop hook enforces this
+## Verify
 
-Run `bash .claude/build/verify.sh` frequently — it's your feedback loop, not a final gate.
+Run ALL spec verifications with Playwright against local dev server. For each: follow the human-steps, write evidence to the specified path. verify.sh checks evidence files — fails if any is missing.
 
-For `playwright`-type verifications in the spec: use MCP Playwright tools to execute the described flow, then write evidence files to the paths specified. verify.sh checks for their existence.
+## Done
 
-## Done Condition
-
-When all acceptance criteria are met AND `bash .claude/build/verify.sh` passes:
-
-1. Update `.claude/build/{slug}/spec.md` Status → `CERTIFYING`
-2. Return a summary (<500 words) of:
-   - What was implemented
-   - Key implementation decisions
-   - Files changed
-   - Test coverage
-   - Any concerns for the certifier
+When verify.sh passes: Status → `CERTIFYING`. Return summary (<500 words): what was implemented, key decisions, files changed, test coverage, concerns for certifier.
