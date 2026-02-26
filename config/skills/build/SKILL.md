@@ -58,11 +58,13 @@ When Status is `VERIFIED`:
 2. Update Status → `BUILDING`
 3. Re-read Status and route per Phase Routing table
 
-After any Skill returns:
+**CRITICAL — Continuous Routing Loop:**
+After ANY Skill() call completes (build-understand, build-verify, etc.), you MUST immediately — without stopping, without waiting for user input:
 1. Re-read `.claude/build/{slug}/spec.md` Status field
 2. Route according to the Phase Routing table above
+3. Invoke the next Skill() if applicable
 
-Never assume the next phase — always check Status.
+Never assume the next phase — always check Status. Never stop between phases — the routing loop is continuous until a phase requires user interaction or Status is DONE.
 
 ### Guardrails
 
@@ -88,16 +90,23 @@ npm run build
 ```
 Re-invoke code-reviewer. If same issues persist after 2 fixes, escalate remaining concerns to user via `AskUserQuestion`.
 
-### 3.2 Deploy
+### 3.2 Commit & Deploy
 
-1. Commit (conventional commits style)
-2. `Skill("ship")` to deploy
+1. Commit all changes (conventional commits style)
+2. Detect deploy capability:
 
-### 3.3 Production Verification
+| `/ship` exists? | Deploy | Verification target |
+|-----------------|--------|---------------------|
+| YES | `Skill("ship")` | Production URL |
+| NO | skip | Local dev server |
 
-Run ALL spec verifications with Playwright against the **PRODUCTION URL**. For each: follow the human-steps from spec's `## Verification`, write evidence to the specified path.
+Check: `ls .claude/commands/ship.md 2>/dev/null || ls .claude/skills/ship/SKILL.md 2>/dev/null`
 
-If a verification fails, fix and re-deploy. If the same approach fails twice, try a different approach. Only escalate to user when genuinely stuck.
+### 3.3 Verify
+
+Run ALL spec verifications with Playwright against the **verification target** from 3.2. For each: follow the human-steps from spec's `## Verification`, write evidence to the specified path.
+
+If a verification fails: fix, re-run (re-deploy if production target). If the same approach fails twice, try a different approach. Only escalate to user when genuinely stuck.
 
 ### 3.4 Wrap Up
 

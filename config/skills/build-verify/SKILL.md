@@ -90,4 +90,4 @@ Pre-check: gate passed, verifications are concrete human-action scripts.
 
 ## Output
 
-Return summary (<300 words): verification scripts designed, verify.sh generated, spec location.
+Return summary (<300 words): verification scripts designed, verify.sh generated, spec location. After the summary, **immediately yield control** — do NOT stop or wait for user input. The orchestrator will re-read Status and route to the next phase.

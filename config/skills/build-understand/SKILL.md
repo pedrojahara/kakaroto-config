@@ -79,5 +79,4 @@ Pre-check: gate passed, spec contains no implementation details.
 
 ## Output
 
-Return summary (<500 words): what will be built, edge cases, spec location. Done — the orchestrator handles the rest.
-
+Return summary (<500 words): what will be built, edge cases, spec location. After the summary, **immediately yield control** — do NOT stop or wait for user input. The orchestrator will re-read Status and route to the next phase.
