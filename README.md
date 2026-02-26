@@ -37,8 +37,9 @@ The installer will detect the existing `.claude/` folder and ask if you want to 
 ├── CLAUDE.md              # Global rules (autonomy, coding standards)
 ├── ARCHITECTURE.md        # Full documentation of the system
 ├── skills/                # Skill workflows (invoked via /skill)
-│   ├── build/SKILL.md     # /build - feature implementation
-│   ├── build-understand/  # Phase: deep requirements gathering
+│   ├── build/SKILL.md     # /build - orchestrator
+│   ├── build-understand/  # Phase: requirements alignment
+│   ├── build-verify/      # Phase: QA-style verification design
 │   └── build-implement/   # Phase: autonomous implementation
 ├── commands/              # Commands (invoked via /command)
 │   ├── resolve.md         # /resolve orchestrator
@@ -58,7 +59,7 @@ The installer will detect the existing `.claude/` folder and ask if you want to 
 
 | Name | Type | Trigger | Description |
 |------|------|---------|-------------|
-| `/build` | Skill | "adicionar", "implementar", "criar" | Full feature workflow: understand → implement → quality |
+| `/build` | Skill | "adicionar", "implementar", "criar" | Full feature workflow: understand → verify → implement → certify |
 | `/resolve` | Command | "bug", "erro", "problema" | Bug resolution: understand → resolve |
 | `/gate` | Command | Manual | Run quality agents before PR |
 
@@ -120,11 +121,12 @@ User: "adiciona filtro de data na listagem"
          ↓
 Claude automatically triggers /build
          ↓
-build-understand → Deep requirements gathering, hypothesis diversification
-build-implement  → Autonomous implementation until tests pass
-quality          → Runs quality agents
+build-understand → Aligns on WHAT to build (user approval gate)
+build-verify     → Designs QA-style human-action test scripts (user approval gate)
+build-implement  → Autonomous implementation until verify.sh passes
+certify          → Quality agents + deploy + production verification
          ↓
-Ready for PR
+Done
 ```
 
 ### Bug Resolution (/resolve)
