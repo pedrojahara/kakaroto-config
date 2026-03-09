@@ -6,6 +6,7 @@ Generate `.claude/build/{slug}/spec.md` using this template. Replace all `{place
 # {Feature Title}
 
 Status: UNDERSTOOD
+Complexity: {LITE | FULL}
 
 ## What
 What this feature does, in plain language, from the user's perspective.
@@ -24,6 +25,8 @@ What this feature does, in plain language, from the user's perspective.
 
 ## Rules
 
+- `Complexity: LITE` when ALL: single-pattern change, 1-3 files, no new UI flow/data model/endpoint
+- `Complexity: FULL` otherwise (default if unsure)
 - Status goes to `UNDERSTOOD` — the understanding gate already passed
 - The spec describes WHAT — never HOW to implement
 - No implementation details: no file lists, no code snippets, no service names

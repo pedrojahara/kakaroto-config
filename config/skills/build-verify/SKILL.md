@@ -10,40 +10,34 @@ allowed-tools:
   - Glob
   - Grep
   - AskUserQuestion
-  - mcp__sequential-thinking__sequentialthinking
   - mcp__memory__search_nodes
 ---
 
-# VERIFY — Design Verification Scripts
+# VERIFY — Design QA Test Scripts
 
-Design HOW A HUMAN TESTS the feature. A spec is only updated after the gate passes.
+Design HOW A HUMAN TESTS the feature.
 
-**Input:** `$ARGUMENTS` = `{slug}`. The spec already exists at `.claude/build/{slug}/spec.md` with Status: UNDERSTOOD.
+**Input:** `$ARGUMENTS` = `{slug}`. Spec at `.claude/build/{slug}/spec.md` with Status: UNDERSTOOD.
 
 ## Boundaries
 
-- **Authority:** You may ONLY set Status to `VERIFIED`. Never write UNDERSTOOD, BUILDING, CERTIFYING, or DONE.
-- **Read scope:** MAY read UI-surface files (pages, components, routes) to understand what's testable. NOT services, handlers, types, or utilities.
-- **Write scope:** Edits `.claude/build/{slug}/spec.md` (## Verification + Status)
-  and writes `.claude/build/verify.sh` using verify-template.md.
-- **Gate:** The verification gate below is mandatory. Requires explicit user approval via `AskUserQuestion` before writing.
+- **Authority:** ONLY set Status to `VERIFIED`.
+- **Write scope:** `.claude/build/{slug}/spec.md` and `.claude/build/verify.sh`.
 
 ---
 
-## Step 1: EXPLORE UI SURFACE
+## Step 1: Read Spec
 
-1. Read `.claude/build/{slug}/spec.md` — understand what was approved (Status must be UNDERSTOOD)
-2. Explore product surface to understand what's testable:
-   ```
-   Glob("**/pages/**/*.tsx"), Glob("**/app/**/page.tsx"), Glob("**/components/**/*.tsx")
-   ```
-3. Search memory for relevant verification patterns: `mcp__memory__search_nodes({ query: "verification" })`
+Read `.claude/build/{slug}/spec.md`. Understand what was approved. If helpful, explore relevant pages/components to understand the UI surface.
 
-## Step 2: DESIGN VERIFICATION
+## Step 2: Design QA Verification
 
-Design test scripts as a QA person would follow them. Each verification = numbered human actions.
+The verification system has two layers — you design the second one:
 
-**Format (must match verify-template.md contract exactly):**
+- **V1-V3 (automatic):** Unit tests, TypeScript, build. Already handled by verify.sh. Don't design these.
+- **V4+ (your job):** What a human QA would test — visual correctness, user flows, states, edge cases. Things that code checks alone can't catch. These are executed by the LLM using Playwright MCP tools.
+
+Design V4+ as human-action scripts. Think: **what would convince a skeptical user that this works?**
 
 ```
 V4: {Test name}
@@ -52,42 +46,34 @@ V4: {Test name}
     2. Click [button/element]
     3. Fill [field] with [value]
     4. Verify [expected result visible on screen]
-  - evidence: .claude/build/evidence/v4-{name}.md
 ```
 
-Rules:
-- Every step must be a concrete, observable action — no "verify the backend saved correctly"
-- Think: **what would convince a skeptical user that this works?**
-- Numbering starts at V4 (V1-V3 are baseline checks in verify.sh)
-- Evidence path format: `.claude/build/evidence/v{N}-{kebab-name}.md`
+Every step must be a concrete, observable action.
 
-### Gate -> `AskUserQuestion`
+### Gate → `AskUserQuestion`
 
-Present each verification as a numbered human-action script. Concrete enough that someone unfamiliar with the project could follow it.
+Present each verification as a numbered human-action script. Options: `"Approve verifications"` / `"Needs changes"`.
 
-Options: `"Approve verifications"` / `"Needs changes"`
+**Empty response guard:** If the user's response is empty, blank, whitespace-only, or does not clearly match one of the two options, treat it as an accidental submission. Do NOT proceed — re-ask the exact same question immediately. This gate requires an explicit, non-empty selection of "Approve verifications" to pass.
 
-If "Needs changes": iterate until user approves.
+Iterate until approved.
 
----
+## Step 3: Write Artifacts
 
-## Step 3: WRITE VERIFICATION TO SPEC
+After gate passes, produce both outputs:
 
-Pre-check: gate passed, verifications are concrete human-action scripts.
+1. **Spec:** Add `## Verification` section to `.claude/build/{slug}/spec.md` (before `## Source`). Set Status → `VERIFIED`.
+2. **verify.sh:** Read `.claude/skills/build-verify/verify-template.md`. Write `.claude/build/verify.sh` following the template — V1-V3 baselines only.
 
-1. Edit `.claude/build/{slug}/spec.md`:
-   - Add `## Verification` section before `## Source`
-   - Set Status -> `VERIFIED`
+## Handoff
 
-## Step 4: GENERATE verify.sh
+Write `.claude/build/{slug}/next-action.md`:
 
-1. Read `.claude/skills/build-verify/verify-template.md`
-2. Write `.claude/build/verify.sh`:
-   - Baselines V1-V3 are fixed (always present, never removed)
-   - For each V in the `## Verification` section of the spec:
-     `check_evidence "V{N}: {name}" "{evidence path from spec}"`
-3. Making it executable is not necessary — build-implementer invokes via `bash .claude/build/verify.sh`
+```
+## Context
+build-verify complete. Verification scripts V4-VN designed, verify.sh generated (V1-V3 baselines only).
 
-## Output
-
-Return summary (<300 words): verification scripts designed, verify.sh generated, spec location. After the summary, **immediately yield control** — do NOT stop or wait for user input. The orchestrator will re-read Status and route to the next phase.
+## Action
+1. Edit `.claude/build/{slug}/spec.md`: change `Status: VERIFIED` to `Status: BUILDING`
+2. Call `Skill("build-implement", args: "{slug}")`
+```

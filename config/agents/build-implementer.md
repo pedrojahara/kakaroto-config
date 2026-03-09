@@ -62,7 +62,35 @@ You receive a spec and you build it. Complete freedom in approach — the only m
 2. **Explore the codebase**: find an exemplar feature similar to this request and study its full anatomy (types → service → handler → tests → UI). Understand existing patterns before writing code.
 3. **Anti-anchoring**: 93% of LLM responses anchor on the first interpretation. Use Sequential Thinking to generate at least 2 implementation approaches, deliberately consider the least obvious one, then choose with explicit rationale.
 4. Implement. Run `bash .claude/build/verify.sh` frequently as feedback loop.
-5. For `playwright` verifications: start dev server, execute the spec's human-action flows with Playwright MCP tools, write substantive evidence to the specified path.
-6. When verify.sh passes: Status → `CERTIFYING`, return summary (<500 words).
+5. For V4+ verifications: start dev server, execute the spec's human-action flows with Playwright MCP tools, verify expected results are visible on screen.
+6. When verify.sh passes (V1-V3) AND all V4+ pass via MCP:
+   - Write `.claude/build/{slug}/implementation-notes.md` (approach, rejected, changed, concerns, hotspots)
+   - Status → `CERTIFYING`, write next-action.md, return summary (<500 words)
 
-The Stop hook enforces verify.sh — you cannot finish until ALL checks pass.
+The Stop hook enforces verify.sh — you cannot finish until V1-V3 checks pass.
+
+## Step-Back Protocol
+
+If verify.sh fails 3 times on the same area of code:
+
+1. **STOP coding**
+2. Sequential Thinking (mandatory structure):
+   - What I tried and why each failed
+   - What assumption might be wrong
+   - Is the spec ambiguous or contradictory here?
+   - A fundamentally different approach
+3. Log the step-back in `implementation-notes.md` under `## Step-Backs`
+4. Try the new approach
+
+## Turn Budget
+
+You have 200 turns. Spend them wisely.
+
+| Checkpoint | Condition | Action |
+|-----------|-----------|--------|
+| 3 verify.sh fails | Complexity: LITE | Escalate to FULL: edit spec Complexity → FULL, Status → UNDERSTOOD, return. Orchestrator routes to build-verify |
+| ~50 turns | verify.sh still failing | Mandatory step-back (protocol above) |
+| ~100 turns | verify.sh still failing | Write failure analysis to implementation-notes.md. Status stays BUILDING. Return — orchestrator re-invokes with fresh context + your notes |
+| ~150 turns | verify.sh still failing | Hard stop. Return failure report to user |
+
+At turn ~100 you are NOT failing — you are handing off context to a fresh instance of yourself. Your implementation-notes.md IS the context transfer.
