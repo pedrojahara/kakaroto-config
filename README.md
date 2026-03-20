@@ -37,16 +37,22 @@ The installer will detect the existing `.claude/` folder and ask if you want to 
 ├── CLAUDE.md              # Global rules (autonomy, coding standards)
 ├── ARCHITECTURE.md        # Full documentation of the system
 ├── skills/                # Skill workflows (invoked via /skill)
-│   ├── build/SKILL.md     # /build - orchestrator
-│   ├── build-understand/  # Phase: requirements alignment
-│   ├── build-verify/      # Phase: QA-style verification design
-│   └── build-implement/   # Phase: autonomous implementation
+│   ├── build/SKILL.md         # /build orchestrator
+│   ├── build-understand/      # Phase: requirements alignment
+│   ├── build-verify/          # Phase: QA verification design
+│   ├── build-implement/       # Phase: autonomous implementation
+│   ├── build-certify/         # Phase: quality + deploy + prod verification
+│   ├── resolve/SKILL.md       # /resolve orchestrator
+│   ├── resolve-investigate/   # Phase: diagnosis + QA reproduction
+│   ├── resolve-fix/           # Phase: autonomous fix + local QA
+│   ├── resolve-certify/       # Phase: quality + deploy + prod QA
+│   ├── think/                 # /think - Socratic problem exploration
+│   └── deliberate/            # /deliberate - adversarial solution design
 ├── commands/              # Commands (invoked via /command)
-│   ├── resolve.md         # /resolve orchestrator
-│   ├── resolve/           # 2 phases: understand → resolve
 │   └── gate.md            # /gate - quality gate before PR
-└── agents/                # 7 specialized subagents
+└── agents/                # 8 specialized subagents
     ├── build-implementer.md
+    ├── resolve-fixer.md
     ├── test-fixer.md
     ├── code-reviewer.md
     ├── code-simplifier.md
@@ -59,21 +65,38 @@ The installer will detect the existing `.claude/` folder and ask if you want to 
 
 | Name | Type | Trigger | Description |
 |------|------|---------|-------------|
-| `/build` | Skill | "adicionar", "implementar", "criar" | Full feature workflow: understand → verify → implement → certify |
-| `/resolve` | Command | "bug", "erro", "problema" | Bug resolution: understand → resolve |
+| `/think` | Skill | Manual | Socratic thinking partner: hypothesis-driven problem exploration, zero implementation |
+| `/deliberate` | Skill | Manual | Adversarial solution designer: challenges framing, simulates scenarios as temporal narratives |
+| `/build` | Skill | "adicionar", "implementar", "criar" | Full feature workflow: understand -> verify -> implement -> certify |
+| `/resolve` | Skill | "bug", "erro", "problema" | Bug resolution: investigate -> fix -> certify |
 | `/gate` | Command | Manual | Run quality agents before PR |
+
+### Workflow Chain
+
+```
+/think  (optional)     Problem exploration: hypotheses, root causes
+   |
+/deliberate (optional) Solution design: scenarios, trade-offs, refinement
+   |
+/build                 Implementation: spec -> verify -> code -> certify
+```
+
+```
+/resolve               Autonomous bug fix: diagnose -> fix -> certify
+```
 
 ## Agents (Subagents)
 
-| Agent | Purpose |
-|-------|---------|
-| `build-implementer` | Autonomous implementation from spec, codes until tests pass |
-| `test-fixer` | Runs tests, fixes failures, creates missing tests |
-| `code-reviewer` | Reviews code quality, security, auto-fixes issues |
-| `code-simplifier` | Reduces complexity, improves readability |
-| `functional-validator` | Validates UI with Playwright (auto-triggered on .tsx/.css changes) |
-| `terraform-validator` | Validates env vars and Terraform consistency |
-| `memory-sync` | Syncs knowledge to MCP Memory |
+| Agent | Model | Blocking | Purpose |
+|-------|-------|----------|---------|
+| `build-implementer` | opus | yes | Autonomous implementation from spec, codes until tests pass |
+| `resolve-fixer` | opus | yes | Autonomous bug fix, codes until QA flows pass |
+| `code-reviewer` | opus | yes | Security, types, bugs |
+| `test-fixer` | sonnet | yes | Runs tests, fixes failures, creates missing tests |
+| `code-simplifier` | opus | no | Clarity, DRY, patterns |
+| `functional-validator` | sonnet | yes | Validates UI with Playwright (auto-triggered on .tsx/.css changes) |
+| `terraform-validator` | sonnet | yes | Validates env vars and Terraform consistency |
+| `memory-sync` | haiku | no | Syncs knowledge to MCP Memory |
 
 ## Philosophy
 
@@ -114,18 +137,46 @@ Create `.claude/commands/your-skill.md` for project-specific workflows.
 
 ## Workflow Examples
 
+### Problem Exploration (/think)
+
+```
+User: "/think o sistema de notificacoes ta confuso"
+         |
+Claude triggers /think
+         |
+Sequential Thinking + Socratic questioning (1 question at a time)
+Anti-anchoring checkpoint after 3rd response
+Convergence when hypothesis survives 3+ tests
+         |
+Saves Problem Brief to .claude/explorations/
+```
+
+### Solution Design (/deliberate)
+
+```
+User: "/deliberate como resolver o problema de cache"
+         |
+Claude triggers /deliberate
+         |
+Move 1: Challenge the frame (hidden assumptions)
+Move 2: Simulate 5+ scenarios as temporal narratives (Dia 1 -> Mes 6)
+Move 3: Pre-mortem + collaborative refinement
+         |
+Saves deliberation with /build command ready
+```
+
 ### Feature Development (/build)
 
 ```
 User: "adiciona filtro de data na listagem"
-         ↓
+         |
 Claude automatically triggers /build
-         ↓
-build-understand → Aligns on WHAT to build (user approval gate)
-build-verify     → Designs QA-style human-action test scripts (user approval gate)
-build-implement  → Autonomous implementation until verify.sh passes
-certify          → Quality agents + deploy + production verification
-         ↓
+         |
+build-understand -> Aligns on WHAT to build (user approval gate)
+build-verify     -> Designs QA-style human-action test scripts (user approval gate)
+build-implement  -> Autonomous implementation until verify.sh passes
+build-certify    -> Quality agents + deploy + production verification
+         |
 Done
 ```
 
@@ -133,13 +184,14 @@ Done
 
 ```
 User: "erro ao salvar formulario"
-         ↓
+         |
 Claude automatically triggers /resolve
-         ↓
-01-understand → Reproduces and investigates the bug
-02-resolve    → Fixes with minimal change + mandatory test
-         ↓
-Done
+         |
+resolve-investigate -> Diagnoses root cause + QA reproduction flows
+resolve-fix         -> Autonomous fix + local QA verification
+resolve-certify     -> Quality agents + deploy + production QA
+         |
+Done (trivial bugs skip directly from investigate)
 ```
 
 ## Requirements
@@ -147,6 +199,8 @@ Done
 - Claude Code CLI
 - MCP Memory server (optional, for knowledge persistence)
 - Playwright MCP (optional, for functional validation)
+- Sequential Thinking MCP (optional, for /think and /deliberate)
+- Context7 MCP (optional, for library documentation)
 
 ## Development
 
@@ -166,8 +220,8 @@ This command will:
 
 **Files synced:**
 - `CLAUDE.md`, `ARCHITECTURE.md`
-- `skills/` (build workflows)
-- `commands/` (resolve, gate)
+- `skills/` (build, resolve, think, deliberate workflows)
+- `commands/` (gate)
 - `agents/` (all subagents)
 - `templates/` (if present)
 

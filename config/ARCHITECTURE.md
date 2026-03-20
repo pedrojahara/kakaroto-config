@@ -6,18 +6,22 @@
 ~/.claude/
 ├── CLAUDE.md / ARCHITECTURE.md
 ├── commands/           (invocados via /skill)
-│   ├── resolve.md + resolve/{01-understand,02-resolve}.md
 │   └── gate.md
 ├── skills/             (invocados via /skill, context fork)
 │   ├── build/SKILL.md  (orquestrador)
 │   ├── build-understand/SKILL.md
 │   ├── build-verify/SKILL.md
-│   └── build-implement/SKILL.md
+│   ├── build-implement/SKILL.md
+│   ├── build-certify/SKILL.md
+│   ├── resolve/SKILL.md  (orquestrador)
+│   ├── resolve-investigate/SKILL.md
+│   ├── resolve-fix/SKILL.md
+│   └── resolve-certify/SKILL.md
 ├── agents/             (invocados via Task tool)
 │   ├── code-reviewer, test-fixer, code-simplifier
 │   ├── functional-validator, terraform-validator
-│   ├── build-implementer, memory-sync
-│   └── (7 agents total)
+│   ├── build-implementer, resolve-fixer, memory-sync
+│   └── (8 agents total)
 └── *-defaults.json
 ```
 
@@ -34,22 +38,27 @@ Projetos adicionam `projeto/.claude/commands/` para skills locais (ex: `/deploy`
 | Understand | `build-understand/SKILL.md` | Product surface, interview, understand requirements |
 | Verify Design | `build-verify/SKILL.md` | Design QA-style human-action verification scripts |
 | Implement | `build-implement/SKILL.md` | Code exploration, anti-anchoring, `build-implementer` agent |
-| Certify | (inline Phase 3) | Quality agents → deploy → re-verify contra producao |
+| Certify | `build-certify/SKILL.md` | Quality agents -> deploy -> re-verify contra producao |
 
-Routing: CLAUDE.md detecta trigger "criar/adicionar/implementar" → `/build`
+Routing: CLAUDE.md detecta trigger "criar/adicionar/implementar" -> `/build`
 
 ### /resolve (Bug Resolution)
 
 | Fase | Arquivo | Acao |
 |------|---------|------|
-| Understand | `resolve/01-understand.md` | ST profundo + 5 Whys + hipoteses rankadas |
-| Resolve | `resolve/02-resolve.md` | Fix minimo + self-healing (H1→H2→H3→PARAR) + commit |
+| Investigate | `resolve-investigate/SKILL.md` | ST hipoteses, prod logs, QA reproduction flows |
+| Fix | `resolve-fix/SKILL.md` | Fix minimo + local QA verification via `resolve-fixer` agent |
+| Certify | `resolve-certify/SKILL.md` | Quality agents -> deploy -> prod QA verification |
 
-Routing: CLAUDE.md detecta trigger "bug/erro/problema" → `/resolve`
+Pipeline: `INVESTIGATING -> DIAGNOSED -> FIXING -> CERTIFYING -> VERIFIED`
+Trivial escape hatch: bugs >95% confidence fix+verify in Phase 1 (investigate).
+Circuit breaker: Attempt 4 in fix -> re-investigate (max 1 cycle).
+
+Routing: CLAUDE.md detecta trigger "bug/erro/problema" -> `/resolve`
 
 ### /gate (Quality Gate)
 
-Ordem: `test-fixer (baseline)` → `code-simplifier` → `test-fixer (verificacao)` → `code-reviewer` → `functional-validator (se UI)` → `terraform-validator (se env)`
+Ordem: `test-fixer (baseline)` -> `code-simplifier` -> `test-fixer (verificacao)` -> `code-reviewer` -> `functional-validator (se UI)` -> `terraform-validator (se env)`
 
 ---
 
@@ -63,6 +72,7 @@ Ordem: `test-fixer (baseline)` → `code-simplifier` → `test-fixer (verificaca
 | functional-validator | sonnet | BLOCKING | Playwright smoke tests em UI |
 | terraform-validator | sonnet | BLOCKING | Consistencia env vars / .tf |
 | build-implementer | opus | BLOCKING | Implementacao autonoma ate testes passarem |
+| resolve-fixer | opus | BLOCKING | Fix autonomo de bugs ate QA flows passarem |
 | memory-sync | haiku | non-blocking | Sincroniza MCP Memory pos-workflow |
 
 ---
@@ -80,7 +90,7 @@ BLOCKING: true | false
 ---END_RESULT---
 ```
 
-Regras: `STATUS=FAIL + BLOCKING=true` → workflow PARA. `BLOCKING=false` → continua com warning.
+Regras: `STATUS=FAIL + BLOCKING=true` -> workflow PARA. `BLOCKING=false` -> continua com warning.
 
 ---
 
@@ -99,8 +109,8 @@ Regras: `STATUS=FAIL + BLOCKING=true` → workflow PARA. `BLOCKING=false` → co
 
 ```bash
 # Skills globais
-/build      # Desenvolver feature completa
-/resolve    # Resolver bug (2-phase)
+/build      # Desenvolver feature completa (4-phase)
+/resolve    # Resolver bug (3-phase: investigate -> fix -> certify)
 /gate       # Quality gate pre-PR
 
 # Skills locais (projeto/.claude/commands/)
@@ -109,5 +119,5 @@ Regras: `STATUS=FAIL + BLOCKING=true` → workflow PARA. `BLOCKING=false` → co
 # Agents (via Task tool)
 # code-reviewer, test-fixer, code-simplifier,
 # functional-validator, terraform-validator,
-# build-implementer, memory-sync
+# build-implementer, resolve-fixer, memory-sync
 ```

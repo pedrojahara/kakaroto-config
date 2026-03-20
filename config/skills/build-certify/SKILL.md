@@ -3,6 +3,7 @@ name: build-certify
 description: "Quality assurance, commit, deploy, and production verification for /build."
 user-invocable: false
 model: opus
+context: fork
 allowed-tools:
   - Read
   - Write
@@ -107,4 +108,4 @@ date -u '+%Y-%m-%dT%H:%M:%SZ' > ".claude/build/{slug}/certified"
 
 ## Output
 
-Return summary. After deleting next-action.md and setting Status DONE, the build is complete.
+Return ONLY: `DONE: {slug}`. No summaries, no explanations. After deleting next-action.md and setting Status DONE, the build is complete.

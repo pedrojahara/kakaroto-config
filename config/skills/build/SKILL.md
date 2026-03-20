@@ -19,23 +19,38 @@ Lifecycle: `DRAFTING → UNDERSTOOD → VERIFIED → BUILDING → CERTIFYING →
 
 ## Algorithm
 
+**CONTINUITY RULE:** All sub-skills run forked (isolated subagents). After each Skill() returns, IMMEDIATELY proceed to the next step. NEVER output text to the user between steps. The only user-visible output is the final DONE summary.
+
 1. Generate slug from `$ARGUMENTS` (first keyword + date, e.g., `auth-2026-02-24`)
-2. If `.claude/build/{slug}/next-action.md` exists → **Read it and execute its instructions exactly**
-3. If not → Read `.claude/build/{slug}/spec.md` Status and do initial routing:
 
-| Status | Action |
-|--------|--------|
-| No spec / DRAFTING | `Skill("build-understand", args: "{slug} {$ARGUMENTS}")` |
-| UNDERSTOOD (LITE) | Status → BUILDING, `Skill("build-implement", args: "{slug}")` |
-| UNDERSTOOD (FULL) | `Skill("build-verify", args: "{slug}")` |
-| VERIFIED | Status → BUILDING, `Skill("build-implement", args: "{slug}")` |
-| BUILDING | `Skill("build-implement", args: "{slug}")` |
-| CERTIFYING | `Skill("build-certify", args: "{slug}")` |
-| DONE | Inform user, build complete |
+2. **RECOVERY** — Read `.claude/build/{slug}/spec.md` Status:
+   - `BUILDING` → jump to step 6
+   - `CERTIFYING` → jump to step 7
+   - `DONE` → inform user, exit
+   - `UNDERSTOOD` → check Complexity: FULL → jump to step 4, LITE → jump to step 5
+   - `VERIFIED` → jump to step 5
+   - Otherwise (no spec / DRAFTING) → continue to step 3
 
-4. After each Skill() returns → **goto step 2**
+3. `Skill("build-understand", args: "{slug} {$ARGUMENTS}")`
+   — If return contains `CANCELLED` → inform user "Build cancelled — feature already solved or not needed", exit.
+   — Otherwise: read `.claude/build/{slug}/spec.md` Complexity. FULL → step 4, LITE → step 5.
 
-The Stop hook enforces step 2 — you cannot stop while `next-action.md` exists.
+4. Read spec Complexity:
+   - **FULL** → `Skill("build-verify", args: "{slug}")`
+     — After return: proceed to step 5.
+   - **LITE** → continue to step 5.
+
+5. Edit spec Status → `BUILDING`
+   `Skill("build-implement", args: "{slug}")`
+   — After return: proceed to step 6.
+   If Status still BUILDING after return: re-invoke (max 2). If stuck → AskUserQuestion.
+
+6. Read spec Status. If CERTIFYING → proceed. If BUILDING → jump to step 5 (max 2 total retries).
+   `Skill("build-certify", args: "{slug}")`
+   — If DONE → exit. If CERTIFYING → re-invoke (max 1). If stuck → AskUserQuestion.
+
+7. `Skill("build-certify", args: "{slug}")`
+   — Recovery entry for CERTIFYING. Same as step 6.
 
 ### Guardrails
 

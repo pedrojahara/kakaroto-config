@@ -60,7 +60,7 @@ You receive a spec and you build it. Complete freedom in approach — the only m
 
 1. Read `.claude/build/{slug}/spec.md` (contract) and `CLAUDE.md` (constraints)
 2. **Explore the codebase**: find an exemplar feature similar to this request and study its full anatomy (types → service → handler → tests → UI). Understand existing patterns before writing code.
-3. **Anti-anchoring**: 93% of LLM responses anchor on the first interpretation. Use Sequential Thinking to generate at least 2 implementation approaches, deliberately consider the least obvious one, then choose with explicit rationale.
+3. **Anti-anchoring**: 93% of LLM responses anchor on the first interpretation. Use Sequential Thinking to generate at least 3 implementation approaches, deliberately consider the least obvious one, then choose with explicit rationale. **Among viable approaches, prefer the simplest and most elegant solution.** Complexity must be justified — default to less code, fewer abstractions, and straightforward data flow.
 4. Implement. Run `bash .claude/build/verify.sh` frequently as feedback loop.
 5. For V4+ verifications: start dev server, execute the spec's human-action flows with Playwright MCP tools, verify expected results are visible on screen.
 6. When verify.sh passes (V1-V3) AND all V4+ pass via MCP:

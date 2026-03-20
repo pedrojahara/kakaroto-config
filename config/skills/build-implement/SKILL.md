@@ -32,7 +32,9 @@ You receive `{slug}` from `$ARGUMENTS`.
 
 **Skip if Complexity: LITE.**
 
-Consider at least 2 implementation approaches before coding. Challenge your first instinct: what assumptions am I making? What breaks if I'm wrong? Use Sequential Thinking for complex decisions.
+Consider at least 3 implementation approaches before coding. Challenge your first instinct: what assumptions am I making? What breaks if I'm wrong? Use Sequential Thinking for complex decisions.
+
+**Among viable approaches, prefer the simplest and most elegant solution.** Complexity must be justified — default to less code, fewer abstractions, and straightforward data flow.
 
 ## Build
 
@@ -60,20 +62,16 @@ Before signaling CERTIFYING, write `.claude/build/{slug}/implementation-notes.md
 
 ## Done
 
-When `bash .claude/build/verify.sh {slug}` passes (V1-V3) AND all V4+ verifications pass via MCP: Status → `CERTIFYING`, implementation-notes.md written. Return summary (<500 words): what was implemented, key decisions, files changed, test coverage, concerns for certifier.
+When `bash .claude/build/verify.sh {slug}` passes (V1-V3) AND all V4+ verifications pass via MCP: Status → `CERTIFYING`, implementation-notes.md written.
+
+Return ONLY: `{slug}: CERTIFYING`
 
 **If the agent returns with Status still BUILDING** (turn budget exhaustion): read `.claude/build/{slug}/implementation-notes.md`, then re-invoke `build-implement` — the fresh agent reads the notes as prior context.
 
 ## Handoff
 
-Before returning, write `.claude/build/{slug}/next-action.md`:
+Before returning, write `.claude/build/{slug}/next-action.md` — a single line:
 
 ```
-## Context
-build-implement complete. All verifications passing. Status: CERTIFYING.
-
-## Action
-1. Run `bash .claude/build/verify.sh {slug}` as pre-check
-2. If PASS: Call `Skill("build-certify", args: "{slug}")`
-3. If FAIL: Update Status to BUILDING, call `Skill("build-implement", args: "{slug}")`
+Skill("build-certify", args: "{slug}")
 ```

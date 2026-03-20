@@ -78,9 +78,9 @@ async function main() {
   console.log(`This will install the following to ${targetPath}:`);
   console.log('  - CLAUDE.md (rules)');
   console.log('  - ARCHITECTURE.md (documentation)');
-  console.log('  - commands/ (commands: /resolve, /gate)');
-  console.log('  - skills/ (workflows: /build)');
-  console.log('  - agents/ (7 specialized subagents)\n');
+  console.log('  - skills/ (workflows: /build, /resolve, /think, /deliberate)');
+  console.log('  - commands/ (commands: /gate)');
+  console.log('  - agents/ (8 specialized subagents)\n');
 
   const fileCount = countFiles(CONFIG_DIR);
   console.log(`Total: ${fileCount} files\n`);

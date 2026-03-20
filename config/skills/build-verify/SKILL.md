@@ -11,6 +11,7 @@ allowed-tools:
   - Grep
   - AskUserQuestion
   - mcp__memory__search_nodes
+context: fork
 ---
 
 # VERIFY — Design QA Test Scripts
@@ -65,15 +66,14 @@ After gate passes, produce both outputs:
 1. **Spec:** Add `## Verification` section to `.claude/build/{slug}/spec.md` (before `## Source`). Set Status → `VERIFIED`.
 2. **verify.sh:** Read `.claude/skills/build-verify/verify-template.md`. Write `.claude/build/verify.sh` following the template — V1-V3 baselines only.
 
+## Output
+
+Return ONLY: `{slug}: VERIFIED`
+
 ## Handoff
 
-Write `.claude/build/{slug}/next-action.md`:
+Before returning, write `.claude/build/{slug}/next-action.md` — a single line:
 
 ```
-## Context
-build-verify complete. Verification scripts V4-VN designed, verify.sh generated (V1-V3 baselines only).
-
-## Action
-1. Edit `.claude/build/{slug}/spec.md`: change `Status: VERIFIED` to `Status: BUILDING`
-2. Call `Skill("build-implement", args: "{slug}")`
+Skill("build-implement", args: "{slug}")
 ```

@@ -3,6 +3,7 @@ name: build-understand
 description: "Requirements designer for /build."
 user-invocable: false
 model: opus
+context: fork
 allowed-tools:
   - Read
   - Write
@@ -46,6 +47,15 @@ Understand WHAT to build. A spec is only written after the gate passes.
    ```
 5. If needed: use Context7, WebSearch, or WebFetch for external API/library docs
 
+### Challenge Assumptions (Sequential Thinking)
+
+After gathering context, run Sequential Thinking (3 thoughts):
+- **Thought 1 (ASSUMPTIONS):** List every assumption embedded in the user's request. What is being taken for granted? What already exists in the codebase that might make this unnecessary or different?
+- **Thought 2 (FRAGILITY):** Which assumption, if wrong, would change what we build? Search codebase (Glob/Grep/Read) for evidence that confirms or refutes it.
+- **Thought 3 (DECISIONS):** What decisions will the implementer face about WHAT to build that the current information doesn't answer? What behavior is ambiguous? What edge cases need a product decision (not an engineering one)?
+
+**Quick-exit:** If the challenge reveals the feature already exists or the problem is trivially solvable, present the finding at the gate with the "Already solved" option. Do not force a spec.
+
 ### Synthesize
 
 Form a clear picture of:
@@ -53,6 +63,7 @@ Form a clear picture of:
 - **What changes** in the UI/behavior the user will see
 - **Edge cases** and error states
 - **What is NOT in scope** — explicit exclusions
+- **Assumptions validated/refuted** from the challenge step
 
 ### Classify Complexity
 
@@ -64,20 +75,55 @@ Before writing the spec, assess:
 
 Include the classification in your gate presentation: "Complexity: LITE — follows existing pattern" or "Complexity: FULL — new [X]"
 
-### Gate → `AskUserQuestion`
+### Gate → Decision Surface + Echo-Back
 
-Present understanding to the user:
-- "Here's what I understand will be built: [description]"
-- "From a user's perspective, this changes: [observable changes]"
-- "Edge cases I identified: [list]"
-- "NOT in scope: [explicit exclusions]"
-- Any questions about ambiguities
+Present understanding via `AskUserQuestion` in this exact structure:
 
-Options: `"Correct"` / `"Needs clarification"`
+**Section 1 — Open Decisions** (only if Thought 3 found decisions):
 
-**Empty response guard:** If the user's response is empty, blank, whitespace-only, or does not clearly match one of the two options, treat it as an accidental submission. Do NOT proceed — re-ask the exact same question immediately. This gate requires an explicit, non-empty selection of "Correct" to pass.
+> **I need your input on {N} decisions before writing the spec:**
+>
+> 1. **{Decision}** — {context from codebase}. Options: (a) ... (b) ...
+> 2. ...
+
+If Thought 3 found zero decisions, skip Section 1 entirely.
+
+**Section 2 — Echo-Back Walkthrough** (always):
+
+> **Here's the feature as a user story — read as if you're using it:**
+>
+> "You open [page]. You [action]. The system [response].
+> If [edge case], then [behavior]..."
+>
+> **What will NOT change:** [explicit exclusions]
+>
+> **Assumptions I challenged:** [what I checked and found]
+
+Complexity classification included as before.
+
+Options: `"Correct"` / `"Needs clarification"` / `"Already solved — cancel build"`
+
+**Empty response guard:** If the user's response is empty, blank, whitespace-only, or does not clearly match one of the options, treat it as an accidental submission. Do NOT proceed — re-ask the exact same question immediately. This gate requires an explicit, non-empty selection to pass.
 
 If "Needs clarification": iterate with follow-up questions until the user confirms.
+If "Already solved": return `{slug}: CANCELLED` — do not write spec.
+
+### Refinement (FULL only)
+
+**Skip if Complexity: LITE** — proceed directly to Step 2.
+
+After the gate passes with "Correct", run Sequential Thinking (2 thoughts):
+- **Thought 1 (GAPS):** If we build exactly this spec, what could go wrong? What questions did we not ask? What interactions with existing features might break?
+- **Thought 2 (RISKS):** Which gaps are spec-level (change what we build) vs implementation-level (change how we build)? Only spec-level gaps matter here.
+
+If spec-level gaps found, present via `AskUserQuestion`:
+- The 2-3 most concrete gaps/risks
+- For each: what changes in the spec if this matters
+
+Options: `"Spec is complete — no changes"` / `"Adjust scope: [user describes]"`
+
+If "Adjust scope": incorporate changes into synthesis, re-present updated understanding, then proceed.
+One round maximum — do not loop indefinitely.
 
 ---
 
@@ -87,31 +133,23 @@ Pre-check: gate passed, spec contains no implementation details.
 
 1. Read `.claude/skills/build-understand/spec-template.md`
 2. Write spec to `.claude/build/{slug}/spec.md` using the template
-3. Status → `UNDERSTOOD`
+3. Populate `## Original Request` with raw $ARGUMENTS text (everything after slug), verbatim
+4. Status → `UNDERSTOOD`
 
 ## Output
 
-Return summary (<500 words): what will be built, edge cases, spec location.
+Return ONLY: `{slug}: UNDERSTOOD` or `{slug}: CANCELLED` (if user chose "Already solved").
 
 ## Handoff
 
-Before returning, write `.claude/build/{slug}/next-action.md`:
+Before returning, write `.claude/build/{slug}/next-action.md` — a single line:
 
 If **Complexity: FULL**:
 ```
-## Context
-build-understand complete. Spec written with Status: UNDERSTOOD, Complexity: FULL.
-
-## Action
-Call `Skill("build-verify", args: "{slug}")`
+Skill("build-verify", args: "{slug}")
 ```
 
 If **Complexity: LITE**:
 ```
-## Context
-build-understand complete. Spec written with Status: UNDERSTOOD, Complexity: LITE.
-
-## Action
-1. Edit spec Status → BUILDING
-2. Call `Skill("build-implement", args: "{slug}")`
+Skill("build-implement", args: "{slug}")
 ```

@@ -21,6 +21,9 @@ What this feature does, in plain language, from the user's perspective.
 
 ## Source
 {Reference to plan file or original description, so Phase 2 can use it as implementation hints}
+
+## Original Request
+{Raw $ARGUMENTS text, verbatim — preserves user's original phrasing for implementer cross-reference}
 ```
 
 ## Rules
