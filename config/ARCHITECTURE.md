@@ -12,11 +12,13 @@
 │   ├── build-understand/SKILL.md
 │   ├── build-verify/SKILL.md
 │   ├── build-implement/SKILL.md
-│   ├── build-certify/SKILL.md
+│   ├── certify/SKILL.md
 │   ├── resolve/SKILL.md  (orquestrador)
 │   ├── resolve-investigate/SKILL.md
 │   ├── resolve-fix/SKILL.md
-│   └── resolve-certify/SKILL.md
+│   └── deliberate/SKILL.md
+├── hooks/              (agent stop hooks)
+│   └── build-implement-stop.sh
 ├── agents/             (invocados via Task tool)
 │   ├── code-reviewer, test-fixer, code-simplifier
 │   ├── functional-validator, terraform-validator
@@ -38,8 +40,9 @@ Projetos adicionam `projeto/.claude/commands/` para skills locais (ex: `/deploy`
 | Understand | `build-understand/SKILL.md` | Product surface, interview, understand requirements |
 | Verify Design | `build-verify/SKILL.md` | Design QA-style human-action verification scripts |
 | Implement | `build-implement/SKILL.md` | Code exploration, anti-anchoring, `build-implementer` agent |
-| Certify | `build-certify/SKILL.md` | Quality agents -> deploy -> re-verify contra producao |
+| Certify | `certify/SKILL.md` | Quality agents -> deploy -> re-verify contra producao |
 
+Accepts description or `.md` plan file path (auto-detected).
 Routing: CLAUDE.md detecta trigger "criar/adicionar/implementar" -> `/build`
 
 ### /resolve (Bug Resolution)
@@ -48,9 +51,9 @@ Routing: CLAUDE.md detecta trigger "criar/adicionar/implementar" -> `/build`
 |------|---------|------|
 | Investigate | `resolve-investigate/SKILL.md` | ST hipoteses, prod logs, QA reproduction flows |
 | Fix | `resolve-fix/SKILL.md` | Fix minimo + local QA verification via `resolve-fixer` agent |
-| Certify | `resolve-certify/SKILL.md` | Quality agents -> deploy -> prod QA verification |
+| Certify | `certify/SKILL.md` | Quality agents -> deploy -> prod QA verification |
 
-Pipeline: `INVESTIGATING -> DIAGNOSED -> FIXING -> CERTIFYING -> VERIFIED`
+Pipeline: `INVESTIGATING -> DIAGNOSED -> FIXING -> CERTIFYING -> VERIFIED_PROD`
 Trivial escape hatch: bugs >95% confidence fix+verify in Phase 1 (investigate).
 Circuit breaker: Attempt 4 in fix -> re-investigate (max 1 cycle).
 
@@ -67,13 +70,13 @@ Ordem: `test-fixer (baseline)` -> `code-simplifier` -> `test-fixer (verificacao)
 | Agent | Modelo | Blocking | Proposito |
 |-------|--------|----------|-----------|
 | code-reviewer | opus | BLOCKING | Seguranca, tipagem, bugs |
-| test-fixer | sonnet | BLOCKING | Rodar/corrigir/criar testes |
-| code-simplifier | sonnet | non-blocking | Clareza, DRY, padroes |
-| functional-validator | sonnet | BLOCKING | Playwright smoke tests em UI |
-| terraform-validator | sonnet | BLOCKING | Consistencia env vars / .tf |
+| test-fixer | opus | BLOCKING | Rodar/corrigir/criar testes |
+| code-simplifier | opus | non-blocking | Clareza, DRY, padroes |
+| functional-validator | opus | BLOCKING | Playwright smoke tests em UI |
+| terraform-validator | opus | BLOCKING | Consistencia env vars / .tf |
 | build-implementer | opus | BLOCKING | Implementacao autonoma ate testes passarem |
 | resolve-fixer | opus | BLOCKING | Fix autonomo de bugs ate QA flows passarem |
-| memory-sync | haiku | non-blocking | Sincroniza MCP Memory pos-workflow |
+| memory-sync | opus | non-blocking | Sincroniza MCP Memory pos-workflow |
 
 ---
 
@@ -109,6 +112,7 @@ Regras: `STATUS=FAIL + BLOCKING=true` -> workflow PARA. `BLOCKING=false` -> cont
 
 ```bash
 # Skills globais
+/deliberate # Design de solucao (adversarial, opcional)
 /build      # Desenvolver feature completa (4-phase)
 /resolve    # Resolver bug (3-phase: investigate -> fix -> certify)
 /gate       # Quality gate pre-PR
