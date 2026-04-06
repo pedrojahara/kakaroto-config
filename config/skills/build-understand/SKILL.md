@@ -3,7 +3,6 @@ name: build-understand
 description: "Requirements designer for /build."
 user-invocable: false
 model: opus
-context: fork
 allowed-tools:
   - Read
   - Write
@@ -11,8 +10,8 @@ allowed-tools:
   - Glob
   - Grep
   - Bash
+  - ToolSearch
   - AskUserQuestion
-  - mcp__sequential-thinking__sequentialthinking
   - mcp__memory__search_nodes
   - mcp__context7__resolve-library-id
   - mcp__context7__query-docs
@@ -22,134 +21,208 @@ allowed-tools:
 
 # ALIGN — Understand Requirements
 
-Understand WHAT to build. A spec is only written after the gate passes.
+Understand WHAT to build. A spec is only written after all questions are answered.
+
+You are a **requirements interviewer**, not a mind reader. Your job is to
+EXTRACT what's in the user's head through structured questions — not to guess
+and ask for confirmation. Never fill gaps with your own assumptions when you
+can ask instead.
 
 **Input:** `$ARGUMENTS` = `{slug} {feature description or plan file path}`. Parse slug (first token), rest is context.
 
 ## Boundaries
 
-- **Authority:** You may ONLY set Status to `UNDERSTOOD`. Never write VERIFIED, BUILDING, CERTIFYING, or DONE.
-- **Scope:** Do NOT read implementation code — no services, types, utilities, handlers.
-- **Gate:** The understanding gate below is mandatory. Requires explicit user approval via `AskUserQuestion` before proceeding.
+- **Authority:** You may ONLY set Status to `DRAFTING` or `UNDERSTOOD`. Never write VERIFIED, BUILDING, CERTIFYING, or DONE.
+- **Scope:** You may read implementation code to understand what exists and how things currently work. Do NOT make implementation decisions — that is build-implement's job.
 
 ---
 
-## Step 1: UNDERSTAND — What are we building?
+## Phase 0: LOAD TOOLS
 
-### Gather Context
+Ensure AskUserQuestion is available: `ToolSearch("select:AskUserQuestion", max_results: 1)`
+
+---
+
+## Phase 1: GATHER CONTEXT
 
 1. Read the input (plan file or description) to understand user intent
-2. Read CLAUDE.md for project conventions
-3. Search memory: `mcp__memory__search_nodes({ query: "relevant-topic" })`
-4. Explore product surface — Glob routes, pages, UI features:
+2. Search memory: `mcp__memory__search_nodes({ query: "relevant-topic" })`
+3. Explore product surface — Glob routes, pages, UI features:
    ```
    Glob("**/pages/**/*.tsx"), Glob("**/app/**/page.tsx"), Glob("**/routes/**")
    ```
+4. Read relevant existing code that relates to the feature (services, types, handlers)
 5. If needed: use Context7, WebSearch, or WebFetch for external API/library docs
 
-### Challenge Assumptions (Sequential Thinking)
+### Assess Input Completeness
 
-After gathering context, run Sequential Thinking (3 thoughts):
-- **Thought 1 (ASSUMPTIONS):** List every assumption embedded in the user's request. What is being taken for granted? What already exists in the codebase that might make this unnecessary or different?
-- **Thought 2 (FRAGILITY):** Which assumption, if wrong, would change what we build? Search codebase (Glob/Grep/Read) for evidence that confirms or refutes it.
-- **Thought 3 (DECISIONS):** What decisions will the implementer face about WHAT to build that the current information doesn't answer? What behavior is ambiguous? What edge cases need a product decision (not an engineering one)?
+Classify the input before proceeding:
 
-**Quick-exit:** If the challenge reveals the feature already exists or the problem is trivially solvable, present the finding at the gate with the "Already solved" option. Do not force a spec.
+- **Rich input** (detailed plan file with architecture, file lists, schemas):
+  Discovery round focuses on WHY, WHO, and validating key assumptions.
+- **Sparse input** (brief description, vague idea): Discovery round must
+  extract significantly more detail — the user has context in their head
+  that isn't written down.
+
+---
+
+## Phase 2: DISCOVERY INTERVIEW
+
+Ask questions directly via AskUserQuestion. Each question gets a real interactive prompt.
+
+### Mandatory questions (ALWAYS ask):
+
+Call AskUserQuestion with up to 3 mandatory questions:
+
+1. **WHY:** "What problem does this solve? What's the motivation?"
+   - Options: `UX friction` / `Missing capability` / `Technical debt`
+2. **WHO:** "Who uses this and in what context?"
+   - Options: `All users` / `Specific user type` / `Admins/operators`
+3. **OPEN:** "What's in your head about this that isn't written down?"
+   - Options: `Nothing else — I shared everything` / `I have more context` / `There are constraints or gotchas`
+
+### Conditional questions (second AskUserQuestion call if needed):
+
+**Add if input is sparse (no detailed plan):**
+- **CURRENT STATE:** "How does this work today / what's the workaround?"
+- **WALKTHROUGH:** "Describe step-by-step what the user does and sees"
+- **SUCCESS:** "How will you know this feature is working correctly?"
+
+**Add if codebase exploration revealed something relevant:**
+- **CONFLICT:** "I found [existing thing] that relates. How should this interact?"
+- **PATTERN:** "This is similar to [existing feature]. Should it follow the same pattern?"
+
+Select 1-3 from the conditional lists based on what's actually missing. Use a second AskUserQuestion call.
+
+**Quick-exit:** If context gathering reveals the feature already exists or is
+trivially solvable, present the finding via AskUserQuestion with "Already solved — cancel" as an option.
+
+---
+
+## Phase 3: ANALYSIS + PROBING
+
+### Challenge Assumptions (Structured Analysis)
+
+Perform ALL three analysis steps, informed by the user's discovery answers:
+
+**Analysis 1 — ASSUMPTIONS:** List every assumption in the request AND in
+the user's discovery answers. What is taken for granted?
+
+**Analysis 2 — FRAGILITY:** Which assumption, if wrong, changes what we build?
+Search codebase for evidence. Cite specific files/lines.
+
+**Analysis 3 — DECISIONS:** What product decisions (about WHAT to build, not
+HOW to implement) remain open? What edge cases need the user's input?
+
+### Completeness Checklist (internal — evaluate before asking)
+
+Check which dimensions the **user has explicitly confirmed or described**:
+
+- [ ] WHY — user articulated the problem/motivation
+- [ ] WHO — user identified all user types
+- [ ] HAPPY PATH — user described or confirmed the main flow
+- [ ] ERROR STATES — user addressed what happens when things go wrong
+- [ ] SCOPE BOUNDARY — user confirmed what is NOT in scope
+- [ ] DATA IMPACT — user discussed effect on existing data (if applicable)
+- [ ] ASSUMPTIONS — high-impact ones validated
+
+**"Covered in the plan" does NOT count as "user confirmed"** — only mark
+a dimension as covered if the user addressed it in discovery.
+
+### Adaptive Merge Check
+
+**Skip probing** and go directly to Phase 4 ONLY if ALL:
+1. ALL checklist dimensions are confirmed by the user
+2. Analysis 3 found zero open decisions
+3. There are zero or one assumptions to validate
+
+If any condition fails, probing is MANDATORY.
+
+### Probing Round
+
+Use AskUserQuestion calls (1-4 questions each) organized by type:
+
+**Open decisions** (from Analysis 3):
+- Question: the decision to be made
+- Options: the concrete alternatives (2-4)
+
+**Assumptions to validate** (high-impact only):
+- Question: "{Assumption}. Correct?"
+- Options: `Correct` / `Wrong — I'll clarify`
+
+**Gaps** (uncovered checklist dimensions):
+- Targeted questions with relevant options
+
+**Open extraction** (always include):
+- "Is there anything about this feature we haven't discussed?"
+- Options: `No, we covered everything` / `Yes, there's more`
+
+---
+
+## Phase 4: SYNTHESIS + CONFIRMATION
 
 ### Synthesize
 
 Form a clear picture of:
 - **What the feature does** from the user's perspective
-- **What changes** in the UI/behavior the user will see
+- **What changes** in the UI/behavior
 - **Edge cases** and error states
 - **What is NOT in scope** — explicit exclusions
-- **Assumptions validated/refuted** from the challenge step
+- **Assumptions validated/refuted** from the collaborative analysis
 
 ### Classify Complexity
 
-Before writing the spec, assess:
-- Does this follow an existing pattern exactly? (LITE candidate)
-- New UI flow, data model, or endpoint? (→ FULL)
-- Touches 4+ files or crosses architectural boundaries? (→ FULL)
+- Follows an existing pattern exactly? → LITE candidate
+- New UI flow, data model, or endpoint? → FULL
+- Touches 4+ files or crosses architectural boundaries? → FULL
 - Unsure? → FULL (safe default)
 
-Include the classification in your gate presentation: "Complexity: LITE — follows existing pattern" or "Complexity: FULL — new [X]"
+### Write Draft Spec + Confirm
 
-### Gate → Decision Surface + Echo-Back
+1. Read `${CLAUDE_SKILL_DIR}/spec-template.md`
+2. Write draft spec to `.workflow/build/{slug}/spec.md` with **Status: DRAFTING**
+3. Populate executive sections (What, Acceptance Criteria, Edge Cases) from synthesis
+4. Populate `## Decisions Made` with decisions from interviews (omit section if none)
+5. Populate `## Constraints` with DO NOT rules from plan + analysis
+6. Populate `## Implementation Plan`:
+   - If $ARGUMENTS references a plan file → Read the file, include ENTIRE content
+   - If $ARGUMENTS is a description → include verbatim
+   - Preserve the plan's structure (sections, code blocks, tables)
+7. Populate `## Source` with plan file path
+8. Populate `## Original Request` with raw $ARGUMENTS verbatim
 
-Present understanding via `AskUserQuestion` in this exact structure:
+**ZERO INFORMATION LOSS RULE:** Every piece of information from the input
+MUST appear in the spec.
 
-**Section 1 — Open Decisions** (only if Thought 3 found decisions):
+9. Call AskUserQuestion for confirmation:
+   - Question: "Is the feature understanding correct?"
+   - Header: "Spec Review"
+   - Options: `Correct` / `Needs clarification` / `Already solved — cancel build`
+   - Preview: user story walkthrough — "You open [page]. You [action]. The system [response]..."
 
-> **I need your input on {N} decisions before writing the spec:**
->
-> 1. **{Decision}** — {context from codebase}. Options: (a) ... (b) ...
-> 2. ...
+### Handle Response
 
-If Thought 3 found zero decisions, skip Section 1 entirely.
+**If "Correct":**
+- **LITE:** Skip refinement, go to Finalize.
+- **FULL:** Perform final gap analysis:
+  - If we build exactly this spec, what could go wrong?
+  - Are there spec-level gaps (change WHAT) vs implementation-level (change HOW)?
+  - If spec-level gaps found (max 2-3): one more AskUserQuestion with the concrete gaps.
+  - Otherwise: go to Finalize.
 
-**Section 2 — Echo-Back Walkthrough** (always):
+**If "Needs clarification":**
+Read feedback, adjust synthesis, update draft spec.md, re-ask (max 3 loops).
 
-> **Here's the feature as a user story — read as if you're using it:**
->
-> "You open [page]. You [action]. The system [response].
-> If [edge case], then [behavior]..."
->
-> **What will NOT change:** [explicit exclusions]
->
-> **Assumptions I challenged:** [what I checked and found]
+**If "Already solved — cancel build":**
+Return `{slug}: CANCELLED`
 
-Complexity classification included as before.
+### Finalize
 
-Options: `"Correct"` / `"Needs clarification"` / `"Already solved — cancel build"`
-
-**Empty response guard:** If the user's response is empty, blank, whitespace-only, or does not clearly match one of the options, treat it as an accidental submission. Do NOT proceed — re-ask the exact same question immediately. This gate requires an explicit, non-empty selection to pass.
-
-If "Needs clarification": iterate with follow-up questions until the user confirms.
-If "Already solved": return `{slug}: CANCELLED` — do not write spec.
-
-### Refinement (FULL only)
-
-**Skip if Complexity: LITE** — proceed directly to Step 2.
-
-After the gate passes with "Correct", run Sequential Thinking (2 thoughts):
-- **Thought 1 (GAPS):** If we build exactly this spec, what could go wrong? What questions did we not ask? What interactions with existing features might break?
-- **Thought 2 (RISKS):** Which gaps are spec-level (change what we build) vs implementation-level (change how we build)? Only spec-level gaps matter here.
-
-If spec-level gaps found, present via `AskUserQuestion`:
-- The 2-3 most concrete gaps/risks
-- For each: what changes in the spec if this matters
-
-Options: `"Spec is complete — no changes"` / `"Adjust scope: [user describes]"`
-
-If "Adjust scope": incorporate changes into synthesis, re-present updated understanding, then proceed.
-One round maximum — do not loop indefinitely.
+1. Update spec Status → `UNDERSTOOD`
+2. Return `{slug}: UNDERSTOOD`
 
 ---
 
-## Step 2: WRITE SPEC
-
-Pre-check: gate passed, spec contains no implementation details.
-
-1. Read `.claude/skills/build-understand/spec-template.md`
-2. Write spec to `.claude/build/{slug}/spec.md` using the template
-3. Populate `## Original Request` with raw $ARGUMENTS text (everything after slug), verbatim
-4. Status → `UNDERSTOOD`
-
 ## Output
 
-Return ONLY: `{slug}: UNDERSTOOD` or `{slug}: CANCELLED` (if user chose "Already solved").
-
-## Handoff
-
-Before returning, write `.claude/build/{slug}/next-action.md` — a single line:
-
-If **Complexity: FULL**:
-```
-Skill("build-verify", args: "{slug}")
-```
-
-If **Complexity: LITE**:
-```
-Skill("build-implement", args: "{slug}")
-```
+Return ONLY: `{slug}: UNDERSTOOD` or `{slug}: CANCELLED`.

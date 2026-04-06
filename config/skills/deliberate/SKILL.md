@@ -39,7 +39,7 @@ You are an adversarial solution designer. Your job is to **find the best approac
 **Goal:** Before evaluating solutions, question whether the PROBLEM is formulated correctly.
 
 1. Read `$ARGUMENTS`. Check if a `/think` brief exists:
-   - Search `.claude/explorations/` for relevant briefs
+   - Search `.workflow/explorations/` for relevant briefs
    - If found, read it to understand the validated problem
    - If not found, treat `$ARGUMENTS` as the raw problem statement
 
@@ -171,11 +171,11 @@ options:
 When saving:
 
 1. **Check for existing /think brief:**
-   - Search `.claude/explorations/` for a brief matching the topic
-   - If found: append `## Deliberation` section to the existing brief using the template at `~/.claude/skills/deliberate/output-template.md`
-   - If not found: create standalone file at `.claude/explorations/{slug}-deliberation.md` using the template at `~/.claude/skills/deliberate/standalone-template.md`
+   - Search `.workflow/explorations/` for a brief matching the topic
+   - If found: append `## Deliberation` section to the existing brief using the template at `${CLAUDE_SKILL_DIR}/output-template.md`
+   - If not found: create standalone file at `.workflow/explorations/{slug}-deliberation.md` using the template at `${CLAUDE_SKILL_DIR}/standalone-template.md`
 
-2. Use the project's working directory for `.claude/explorations/`.
+2. Use the project's working directory for `.workflow/explorations/`.
 
 3. After saving, inform the user:
    - Where the file was saved

@@ -1,6 +1,6 @@
 # Spec Template
 
-Generate `.claude/build/{slug}/spec.md` using this template. Replace all `{placeholders}` with actual content from the approved gates.
+Generate `.workflow/build/{slug}/spec.md` using this template. Replace all `{placeholders}` with actual content from the approved gates.
 
 ```markdown
 # {Feature Title}
@@ -17,13 +17,27 @@ What this feature does, in plain language, from the user's perspective.
 
 ## Edge Cases
 - What happens when X?
-- Error states?
+
+## Decisions Made
+{Decisions surfaced at the gate and resolved by the user}
+- **{Decision}:** {Choice} — {rationale}
+
+## Constraints
+{DO NOT rules, architectural constraints, anti-patterns}
+- DO NOT ...
+- MUST ...
+
+## Implementation Plan
+{FULL content from the plan/arguments. Nothing omitted.
+If input was a plan file: include ENTIRE file content.
+If input was a description: include it verbatim.
+Organize into logical subsections preserving the plan's structure.}
 
 ## Source
-{Reference to plan file or original description, so Phase 2 can use it as implementation hints}
+{Path to plan file, if applicable}
 
 ## Original Request
-{Raw $ARGUMENTS text, verbatim — preserves user's original phrasing for implementer cross-reference}
+{Raw $ARGUMENTS text, verbatim}
 ```
 
 ## Rules
@@ -31,6 +45,9 @@ What this feature does, in plain language, from the user's perspective.
 - `Complexity: LITE` when ALL: single-pattern change, 1-3 files, no new UI flow/data model/endpoint
 - `Complexity: FULL` otherwise (default if unsure)
 - Status goes to `UNDERSTOOD` — the understanding gate already passed
-- The spec describes WHAT — never HOW to implement
-- No implementation details: no file lists, no code snippets, no service names
+- Sections above `## Implementation Plan` describe WHAT (executive summary)
+- `## Implementation Plan` preserves EVERYTHING from the plan — code, files, architecture, execution order
+- `## Decisions Made` captures decisions from the gate (omit if none)
+- `## Constraints` captures DO NOT rules from plan + analysis
 - `## Verification` section is added later by build-verify, not by this template
+- **ZERO INFORMATION LOSS:** Every piece of information from the input MUST appear in the spec

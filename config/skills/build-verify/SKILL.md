@@ -1,6 +1,6 @@
 ---
 name: build-verify
-description: "Verification designer for /build. Designs QA-style human-action test scripts."
+description: "Verification designer for /build. Designs QA test scripts (executed via Playwright MCP) and confirms with user via AskUserQuestion."
 user-invocable: false
 model: opus
 allowed-tools:
@@ -9,40 +9,47 @@ allowed-tools:
   - Edit
   - Glob
   - Grep
+  - ToolSearch
   - AskUserQuestion
   - mcp__memory__search_nodes
-context: fork
 ---
 
 # VERIFY — Design QA Test Scripts
 
-Design HOW A HUMAN TESTS the feature.
+Design QA test flows for the feature. Think like a human QA tester, but these flows
+are executed automatically by the LLM via Playwright MCP tools.
 
-**Input:** `$ARGUMENTS` = `{slug}`. Spec at `.claude/build/{slug}/spec.md` with Status: UNDERSTOOD.
+**Input:** `$ARGUMENTS` = `{slug}`. Spec at `.workflow/build/{slug}/spec.md` with Status: UNDERSTOOD.
 
 ## Boundaries
 
 - **Authority:** ONLY set Status to `VERIFIED`.
-- **Write scope:** `.claude/build/{slug}/spec.md` and `.claude/build/verify.sh`.
+- **Write scope:** `.workflow/build/{slug}/spec.md` and `.workflow/build/verify.sh`.
+
+---
+
+## Step 0: LOAD TOOLS
+
+Ensure AskUserQuestion is available: `ToolSearch("select:AskUserQuestion", max_results: 1)`
 
 ---
 
 ## Step 1: Read Spec
 
-Read `.claude/build/{slug}/spec.md`. Understand what was approved. If helpful, explore relevant pages/components to understand the UI surface.
+Read `.workflow/build/{slug}/spec.md`. Understand what was approved. If helpful, explore relevant pages/components to understand the UI surface.
 
 ## Step 2: Design QA Verification
 
 The verification system has two layers — you design the second one:
 
 - **V1-V3 (automatic):** Unit tests, TypeScript, build. Already handled by verify.sh. Don't design these.
-- **V4+ (your job):** What a human QA would test — visual correctness, user flows, states, edge cases. Things that code checks alone can't catch. These are executed by the LLM using Playwright MCP tools.
+- **V4+ (your job):** What a human QA would test — visual correctness, user flows, states, edge cases. These are executed by the LLM using Playwright MCP tools.
 
-Design V4+ as human-action scripts. Think: **what would convince a skeptical user that this works?**
+Design V4+ as QA test scripts. Think: **what would convince a skeptical user that this works?**
 
 ```
 V4: {Test name}
-  - human-steps:
+  - steps:
     1. Open [page/URL]
     2. Click [button/element]
     3. Fill [field] with [value]
@@ -51,29 +58,32 @@ V4: {Test name}
 
 Every step must be a concrete, observable action.
 
-### Gate → `AskUserQuestion`
+## Step 3: Ask for Approval
 
-Present each verification as a numbered human-action script. Options: `"Approve verifications"` / `"Needs changes"`.
+Call AskUserQuestion with this exact structure:
+- question: "Você aprova os scripts de verificação V4+ abaixo?"
+- header: "QA Approval"
+- multiSelect: false
+- options:
+  1. label: "Aprovar verificações (Recommended)"
+     description: "Os scripts estão corretos, pode prosseguir"
+     preview: **PASTE ALL V4+ SCRIPTS HERE** — the complete scripts from Step 2, every step, no abbreviation. Use markdown formatting.
+  2. label: "Precisa de ajustes"
+     description: "Algo precisa ser mudado nos scripts de verificação"
 
-**Empty response guard:** If the user's response is empty, blank, whitespace-only, or does not clearly match one of the two options, treat it as an accidental submission. Do NOT proceed — re-ask the exact same question immediately. This gate requires an explicit, non-empty selection of "Approve verifications" to pass.
+**CRITICAL:** The `preview` field on the first option MUST contain the FULL V4+ scripts designed in Step 2.
+Without this, the user CANNOT see what they are approving. The preview renders as a side-by-side panel in the UI.
 
-Iterate until approved.
+### If "Approve verifications"
 
-## Step 3: Write Artifacts
+1. Add `## Verification` section to `.workflow/build/{slug}/spec.md` (before `## Source`). Set Status → `VERIFIED`.
+2. Read `${CLAUDE_SKILL_DIR}/verify-template.md`. Write `.workflow/build/verify.sh` following the template — V1-V3 baselines only.
+3. Return `{slug}: VERIFIED`
 
-After gate passes, produce both outputs:
+### If "Needs changes"
 
-1. **Spec:** Add `## Verification` section to `.claude/build/{slug}/spec.md` (before `## Source`). Set Status → `VERIFIED`.
-2. **verify.sh:** Read `.claude/skills/build-verify/verify-template.md`. Write `.claude/build/verify.sh` following the template — V1-V3 baselines only.
+Read feedback, redesign V4+ scripts, re-ask. Max 3 loops.
 
 ## Output
 
 Return ONLY: `{slug}: VERIFIED`
-
-## Handoff
-
-Before returning, write `.claude/build/{slug}/next-action.md` — a single line:
-
-```
-Skill("build-implement", args: "{slug}")
-```

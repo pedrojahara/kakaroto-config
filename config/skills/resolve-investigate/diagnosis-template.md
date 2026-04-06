@@ -1,6 +1,6 @@
 # Diagnosis Template
 
-Generate `.claude/resolve/{slug}/diagnosis.md` using this template. Replace all `{placeholders}` with actual content from the investigation.
+Generate `.workflow/resolve/{slug}/diagnosis.md` using this template. Replace all `{placeholders}` with actual content from the investigation.
 
 ```markdown
 # Diagnosis: {One-Line Bug Summary}
@@ -88,10 +88,11 @@ Each flow must have concrete, observable steps. Include at least 1 flow, more if
 ## Status Values
 
 - `INVESTIGATING` -- investigation in progress
-- `DIAGNOSED` -- root cause identified, ready for fix
+- `DIAGNOSED` -- root cause identified, ready for user review
+- `VERIFIED` -- user approved diagnosis + QA flows, ready for fix
 - `FIXING` -- resolve-fix is working on it
-- `CERTIFYING` -- fix applied, quality/deploy verification pending
-- `VERIFIED` -- fix confirmed in production
+- `CERTIFYING` -- fix applied + committed, deploy/production QA pending
+- `VERIFIED_PROD` -- fix confirmed in production
 - `FAILED` -- could not resolve
 
 ## Severity Classification

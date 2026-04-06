@@ -37,18 +37,7 @@ hooks:
   Stop:
     - hooks:
         - type: command
-          command: |
-            VERIFY=".claude/build/verify.sh"
-            if [ ! -f "$VERIFY" ]; then
-              echo "Cannot stop: no verify.sh found." >&2
-              echo "Phase 1 should have generated this from the spec's Verification section." >&2
-              exit 2
-            fi
-            bash "$VERIFY"
-            if [ $? -ne 0 ]; then
-              exit 2
-            fi
-            exit 0
+          command: bash "$HOME/.claude/hooks/build-implement-stop.sh"
           timeout: 300
 ---
 
@@ -58,16 +47,16 @@ You receive a spec and you build it. Complete freedom in approach — the only m
 
 ## Workflow
 
-1. Read `.claude/build/{slug}/spec.md` (contract) and `CLAUDE.md` (constraints)
+1. Read `.workflow/build/{slug}/spec.md` (contract) and `CLAUDE.md` (constraints)
 2. **Explore the codebase**: find an exemplar feature similar to this request and study its full anatomy (types → service → handler → tests → UI). Understand existing patterns before writing code.
 3. **Anti-anchoring**: 93% of LLM responses anchor on the first interpretation. Use Sequential Thinking to generate at least 3 implementation approaches, deliberately consider the least obvious one, then choose with explicit rationale. **Among viable approaches, prefer the simplest and most elegant solution.** Complexity must be justified — default to less code, fewer abstractions, and straightforward data flow.
-4. Implement. Run `bash .claude/build/verify.sh` frequently as feedback loop.
-5. For V4+ verifications: start dev server, execute the spec's human-action flows with Playwright MCP tools, verify expected results are visible on screen.
-6. When verify.sh passes (V1-V3) AND all V4+ pass via MCP:
-   - Write `.claude/build/{slug}/implementation-notes.md` (approach, rejected, changed, concerns, hotspots)
+4. Implement. Run `bash .workflow/build/verify.sh` frequently as feedback loop.
+5. For V4+ verifications: start dev server, execute the spec's QA test flows with Playwright MCP tools, create v4-passed marker.
+6. When verify.sh --full passes (V1-V3 + V4+):
+   - Write `.workflow/build/{slug}/implementation-notes.md` (approach, rejected, changed, concerns, hotspots)
    - Status → `CERTIFYING`, write next-action.md, return summary (<500 words)
 
-The Stop hook enforces verify.sh — you cannot finish until V1-V3 checks pass.
+The Stop hook enforces verify.sh --full — you cannot finish until V1-V3 AND V4+ checks pass.
 
 ## Step-Back Protocol
 

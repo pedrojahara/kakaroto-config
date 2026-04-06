@@ -67,7 +67,7 @@ Use `mcp__sequential-thinking__sequentialthinking` with this structure:
 
 Between thoughts, actively investigate: Read files, Grep patterns, run code, check logs. Each thought should incorporate NEW evidence found since the last thought.
 
-## Step 3: Reproduce -- QA Human-Action Flows
+## Step 3: Reproduce Bug
 
 Two reproduction layers:
 
@@ -79,22 +79,32 @@ Write a test that FAILS right now, proving the bug exists:
 - Run with `npm test` and confirm it FAILS
 - If untestable via automated test, document WHY in diagnosis
 
-### B. QA Reproduction Flows (human-level, via Playwright MCP)
+### B. Production/Browser Reproduction
 
+**Production Auth:** Search `mcp__memory__search_nodes({ query: "production-testing" })` for auth methods.
+- **API testing (preferred):** Use `X-API-Key` header with the admin key from Secret Manager (`sm-global-admin-api-key`). Fastest for verifying API endpoints.
+- **Local browser:** Use Playwright MCP against localhost:3001 (dev server). Works without auth.
+- **Production browser:** Playwright MCP does NOT work with Firebase Auth. Use standalone `chromium.launch()` if needed.
+
+For local reproduction:
 1. Check if dev server is running on `http://localhost:3001`. If not, start it: `npm run dev &` and wait for ready.
-2. Use Playwright MCP tools to execute flows against localhost:
-   - Navigate to relevant pages
-   - Perform user actions that trigger the bug
-   - Take screenshots as evidence
-   - Check console for errors (`browser_console_messages`)
+2. Use Playwright MCP tools to execute flows against localhost
 3. Try multiple different flows until you reproduce the bug
 4. Record the EXACT flow that reproduced it + evidence (console errors, visual state)
-5. If you cannot reproduce after thorough attempts: document what you tried and why reproduction failed
 
-Design the QA flows that will become the verification contract for resolve-fix:
+For production-only bugs (infra/proxy/timeout issues):
+1. Use curl with `X-API-Key` header against the production URL to test API endpoints
+2. Check production logs: `npx tsx scripts/query-prod-logs.ts --level 2`
+3. If you cannot reproduce after thorough attempts: document what you tried and why reproduction failed
+
+### C. Design QA Reproduction Flows (for diagnosis)
+
+Based on what you found in A and B, design the QA flows that will become the verification contract. These will be reviewed by the user in resolve-verify before the fix begins.
+
 - Each flow: preconditions, human-steps, expected-bug, expected-fixed
 - Concrete, observable actions only
 - At least 1 flow, more if bug manifests in multiple paths
+- Keep flows PRACTICAL -- they will be executed by Playwright MCP, so avoid steps that require complex state setup or external dependencies
 
 ## Step 4: Classify Severity
 
@@ -106,8 +116,8 @@ Based on investigation results:
 
 ## Step 5: Write Diagnosis
 
-1. Read `.claude/skills/resolve-investigate/diagnosis-template.md`
-2. Write diagnosis to `.claude/resolve/{slug}/diagnosis.md` using the template
+1. Read `${CLAUDE_SKILL_DIR}/diagnosis-template.md`
+2. Write diagnosis to `.workflow/resolve/{slug}/diagnosis.md` using the template
 3. Populate all sections with evidence gathered during investigation
 4. Status -> `DIAGNOSED`
 
@@ -138,7 +148,7 @@ Return ONLY: `{slug}: DIAGNOSED` or `{slug}: TRIVIAL`
 
 ## Handoff
 
-Before returning, write `.claude/resolve/{slug}/next-action.md` -- a single line:
+Before returning, write `.workflow/resolve/{slug}/next-action.md` -- a single line:
 
 If **TRIVIAL** (escape hatch succeeded):
 ```

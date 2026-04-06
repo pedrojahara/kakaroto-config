@@ -5,6 +5,33 @@ context: fork
 agent: resolve-fixer
 user-invocable: false
 model: opus
+allowed-tools:
+  - Read
+  - Write
+  - Edit
+  - Bash
+  - Glob
+  - Grep
+  - mcp__sequential-thinking__sequentialthinking
+  - mcp__memory__search_nodes
+  - mcp__context7__resolve-library-id
+  - mcp__context7__query-docs
+  - mcp__playwright__browser_navigate
+  - mcp__playwright__browser_snapshot
+  - mcp__playwright__browser_click
+  - mcp__playwright__browser_fill_form
+  - mcp__playwright__browser_type
+  - mcp__playwright__browser_wait_for
+  - mcp__playwright__browser_console_messages
+  - mcp__playwright__browser_close
+  - mcp__playwright__browser_take_screenshot
+  - mcp__playwright__browser_tabs
+  - mcp__playwright__browser_press_key
+  - mcp__playwright__browser_hover
+  - mcp__playwright__browser_select_option
+  - mcp__playwright__browser_evaluate
+  - mcp__playwright__browser_network_requests
+  - mcp__playwright__browser_navigate_back
 ---
 
 # FIX -- Resolve Root Cause + Local QA Verification
@@ -19,7 +46,7 @@ You receive `{slug}` from `$ARGUMENTS`.
 
 ## Setup
 
-1. Read `.claude/resolve/{slug}/diagnosis.md` -- this is your contract (WHAT is broken + HOW to verify)
+1. Read `.workflow/resolve/{slug}/diagnosis.md` -- this is your contract (WHAT is broken + HOW to verify)
 2. Read the project's `CLAUDE.md` -- constraints and conventions
 3. Search memory if relevant: `mcp__memory__search_nodes({ query: "relevant-pattern" })`
 4. Read the Root Cause, Suggested Fix, Hotspots, and QA Reproduction Flows sections
@@ -36,12 +63,19 @@ If the same approach fails twice, use Sequential Thinking to reconsider.
 
 ## Local QA Verification
 
-After unit tests pass, execute ALL QA Reproduction Flows from the diagnosis via Playwright MCP against `http://localhost:3001`:
+After unit tests pass, execute ALL QA Reproduction Flows from the diagnosis:
 
-1. Ensure dev server is running (start if needed)
-2. For each R1, R2...: follow human-steps exactly
-3. Verify expected-fixed state is visible on screen
-4. If any flow still shows the bug: fix is incomplete, iterate
+**Auth methods** (search `mcp__memory__search_nodes({ query: "production-testing" })` for details):
+- **Local browser:** Playwright MCP against `http://localhost:3001` (no auth needed in dev)
+- **API testing:** curl with `X-API-Key` header (admin key from Secret Manager `sm-global-admin-api-key`)
+- **Production-only bugs:** If the bug only manifests in production (infra/proxy/timeout), use API key + curl against the production URL. Check logs via `npx tsx scripts/query-prod-logs.ts --level 2`.
+
+Steps:
+1. For browser-testable flows: ensure dev server is running, use Playwright MCP against localhost
+2. For API-testable flows: use curl with appropriate auth
+3. For each R1, R2...: follow human-steps exactly
+4. Verify expected-fixed state
+5. If any flow still shows the bug: fix is incomplete, iterate
 
 ## Circuit Breaker
 
@@ -49,7 +83,7 @@ Attempt 4 with no progress -> Update diagnosis Status -> `INVESTIGATING`. Write 
 
 ## Notes
 
-Before signaling CERTIFYING, write `.claude/resolve/{slug}/fix-notes.md`:
+Before signaling CERTIFYING, write `.workflow/resolve/{slug}/fix-notes.md`:
 - Approach chosen and why
 - Rejected approaches
 - Files changed with rationale
@@ -61,15 +95,16 @@ Before signaling CERTIFYING, write `.claude/resolve/{slug}/fix-notes.md`:
 When `npm test -- --run` passes AND `npx tsc --noEmit` passes AND all QA flows pass via Playwright MCP:
 - Status -> `CERTIFYING`
 - fix-notes.md written
+- Do NOT commit -- the orchestrator handles the commit after this skill returns
 - Return ONLY: `{slug}: CERTIFYING`
 
-**If the agent returns with Status still FIXING** (turn budget): read `.claude/resolve/{slug}/fix-notes.md`, then re-invoke resolve-fix -- the fresh agent reads the notes as prior context.
+**If the agent returns with Status still FIXING** (turn budget): read `.workflow/resolve/{slug}/fix-notes.md`, then re-invoke resolve-fix -- the fresh agent reads the notes as prior context.
 
 **If the agent returns with Status INVESTIGATING** (circuit breaker): orchestrator re-invokes resolve-investigate.
 
 ## Handoff
 
-Before returning, write `.claude/resolve/{slug}/next-action.md` -- a single line:
+Before returning, write `.workflow/resolve/{slug}/next-action.md` -- a single line:
 
 If CERTIFYING:
 ```

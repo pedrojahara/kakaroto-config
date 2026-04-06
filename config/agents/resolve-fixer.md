@@ -35,8 +35,11 @@ hooks:
     - hooks:
         - type: command
           command: |
+            INPUT=$(cat)
+            STOP_ACTIVE=$(echo "$INPUT" | jq -r '.stop_hook_active // false')
+            if [ "$STOP_ACTIVE" = "true" ]; then exit 0; fi
             # Validate resolve workflow state before allowing stop
-            DIAG=$(find .claude/resolve -name "diagnosis.md" 2>/dev/null | head -1)
+            DIAG=$(find .workflow/resolve -name "diagnosis.md" 2>/dev/null | head -1)
             if [ -z "$DIAG" ]; then
               echo "Cannot stop: no diagnosis.md found." >&2
               exit 2
@@ -64,7 +67,7 @@ You receive a diagnosis and you fix the bug. Complete freedom in approach -- the
 
 ## Workflow
 
-1. Read `.claude/resolve/{slug}/diagnosis.md` (contract) and `CLAUDE.md` (constraints)
+1. Read `.workflow/resolve/{slug}/diagnosis.md` (contract) and `CLAUDE.md` (constraints)
 2. Read the Root Cause, Suggested Fix, and QA Reproduction Flows sections carefully
 3. **Fix the root cause.** Start from the suggested fix, but you are NOT bound to it. Make the minimum change necessary.
 4. After each change: `npm test -- --run` + `npx tsc --noEmit`. Iterate until both pass.
@@ -73,7 +76,7 @@ You receive a diagnosis and you fix the bug. Complete freedom in approach -- the
    - Verify the bug is NO LONGER present (expected-fixed state visible)
    - If any flow still shows the bug: fix is incomplete, iterate
 6. When tests pass AND all QA flows pass:
-   - Write `.claude/resolve/{slug}/fix-notes.md` (approach, rejected, files changed, concerns)
+   - Write `.workflow/resolve/{slug}/fix-notes.md` (approach, rejected, files changed, concerns)
    - Update diagnosis Status -> `CERTIFYING`
    - Write next-action.md, return summary (<500 words)
 

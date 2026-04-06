@@ -78,9 +78,10 @@ async function main() {
   console.log(`This will install the following to ${targetPath}:`);
   console.log('  - CLAUDE.md (rules)');
   console.log('  - ARCHITECTURE.md (documentation)');
-  console.log('  - skills/ (workflows: /build, /resolve, /think, /deliberate)');
+  console.log('  - skills/ (workflows: /build, /resolve, /deliberate)');
   console.log('  - commands/ (commands: /gate)');
-  console.log('  - agents/ (8 specialized subagents)\n');
+  console.log('  - agents/ (8 specialized subagents)');
+  console.log('  - hooks/ (agent stop hooks)\n');
 
   const fileCount = countFiles(CONFIG_DIR);
   console.log(`Total: ${fileCount} files\n`);
@@ -101,6 +102,35 @@ async function main() {
       process.exit(0);
     }
     console.log('\nInstalling config...\n');
+  }
+
+  // Clean up deprecated paths from previous versions
+  const DEPRECATED_DIRS = [
+    'skills/build-certify',
+    'skills/resolve-certify',
+    'skills/resolve-verify',
+    'skills/build-plan',
+    'skills/build-plan-spec',
+    'skills/build-plan-implement',
+    'skills/think',
+  ];
+  const DEPRECATED_FILES = [
+    'agents/build-plan-implementer.md',
+  ];
+
+  for (const p of DEPRECATED_DIRS) {
+    const full = path.join(CLAUDE_DIR, p);
+    if (fs.existsSync(full)) {
+      fs.rmSync(full, { recursive: true });
+      console.log(`  - removed deprecated: ${p}/`);
+    }
+  }
+  for (const f of DEPRECATED_FILES) {
+    const full = path.join(CLAUDE_DIR, f);
+    if (fs.existsSync(full)) {
+      fs.unlinkSync(full);
+      console.log(`  - removed deprecated: ${f}`);
+    }
   }
 
   try {

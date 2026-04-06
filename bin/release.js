@@ -14,6 +14,8 @@ const PACKAGE_JSON = path.join(PROJECT_ROOT, 'package.json');
 
 // Exclusions - personal files not to publish
 const EXCLUDED_COMMANDS = ['audit-command', 'audit-command.md'];
+const EXCLUDED_SKILLS = ['build-plan', 'build-plan-spec', 'build-plan-implement', 'resolve-verify', 'build-certify', 'resolve-certify', 'think'];
+const EXCLUDED_AGENTS = ['build-plan-implementer.md'];
 
 // Semver validation regex
 const SEMVER_REGEX = /^\d+\.\d+\.\d+$/;
@@ -136,12 +138,15 @@ async function main() {
 
   // Count files to sync
   const commandsCount = countFiles(path.join(HOME_CLAUDE, 'commands'), EXCLUDED_COMMANDS);
-  const agentsCount = countFiles(path.join(HOME_CLAUDE, 'agents'));
-  const skillsCount = countFiles(path.join(HOME_CLAUDE, 'skills'));
+  const agentsCount = countFiles(path.join(HOME_CLAUDE, 'agents'), EXCLUDED_AGENTS);
+  const skillsCount = countFiles(path.join(HOME_CLAUDE, 'skills'), EXCLUDED_SKILLS);
+  const hooksCount = fs.existsSync(path.join(HOME_CLAUDE, 'hooks'))
+    ? countFiles(path.join(HOME_CLAUDE, 'hooks'))
+    : 0;
   const templatesCount = fs.existsSync(path.join(HOME_CLAUDE, 'templates'))
     ? countFiles(path.join(HOME_CLAUDE, 'templates'))
     : 0;
-  const totalFiles = commandsCount + agentsCount + skillsCount + templatesCount + 2; // +2 for CLAUDE.md and ARCHITECTURE.md
+  const totalFiles = commandsCount + agentsCount + skillsCount + hooksCount + templatesCount + 2; // +2 for CLAUDE.md and ARCHITECTURE.md
 
   // Show preview
   console.log('This will:');
@@ -151,6 +156,9 @@ async function main() {
   console.log(`     - commands/ (${commandsCount} files, excluding audit-command)`);
   console.log(`     - agents/ (${agentsCount} files)`);
   console.log(`     - skills/ (${skillsCount} files)`);
+  if (hooksCount > 0) {
+    console.log(`     - hooks/ (${hooksCount} files)`);
+  }
   if (templatesCount > 0) {
     console.log(`     - templates/ (${templatesCount} files)`);
   }
@@ -172,6 +180,7 @@ async function main() {
   cleanDir(path.join(CONFIG_DIR, 'commands'));
   cleanDir(path.join(CONFIG_DIR, 'agents'));
   cleanDir(path.join(CONFIG_DIR, 'skills'));
+  cleanDir(path.join(CONFIG_DIR, 'hooks'));
   cleanDir(path.join(CONFIG_DIR, 'templates'));
 
   // Ensure config directory exists
@@ -208,14 +217,24 @@ async function main() {
   console.log('Copying agents/...');
   copyRecursive(
     path.join(HOME_CLAUDE, 'agents'),
-    path.join(CONFIG_DIR, 'agents')
+    path.join(CONFIG_DIR, 'agents'),
+    EXCLUDED_AGENTS
   );
 
   console.log('Copying skills/...');
   copyRecursive(
     path.join(HOME_CLAUDE, 'skills'),
-    path.join(CONFIG_DIR, 'skills')
+    path.join(CONFIG_DIR, 'skills'),
+    EXCLUDED_SKILLS
   );
+
+  if (fs.existsSync(path.join(HOME_CLAUDE, 'hooks'))) {
+    console.log('Copying hooks/...');
+    copyRecursive(
+      path.join(HOME_CLAUDE, 'hooks'),
+      path.join(CONFIG_DIR, 'hooks')
+    );
+  }
 
   if (fs.existsSync(path.join(HOME_CLAUDE, 'templates'))) {
     console.log('Copying templates/...');

@@ -14,19 +14,23 @@ You receive `{slug}` from `$ARGUMENTS`.
 ## Boundaries
 
 - **Authority:** You may ONLY set Status to `CERTIFYING`. Never write UNDERSTOOD, VERIFIED, DONE, or any other status.
+- **Markers:** You MUST create `v4-passed` after V4+ verification passes locally. NEVER create `certified` — that belongs to build-certify.
 - **Autonomous:** No user interaction. Resolve ambiguities using the spec and the codebase.
 - **Contract:** `spec.md` is truth. If spec and codebase conflict, follow the spec.
 
 ## Setup
 
-1. Read `.claude/build/{slug}/spec.md` — this is your contract (WHAT to build + HOW to verify)
+1. Read `.workflow/build/{slug}/spec.md` — this is your contract
 2. Check `Complexity` field:
-   - **FULL:** proceed with steps 3-5 below
+   - **FULL:** proceed with steps 3-7 below
    - **LITE:** skip to Build (no exemplar study, no anti-anchoring required)
-3. If the spec has a `## Source` section, read the referenced file — these are implementation hints, not constraints
-4. Read the project's `CLAUDE.md` — these are your constraints
-5. Search memory for relevant patterns: `mcp__memory__search_nodes({ query: "patterns" })`
-6. Find an exemplar feature similar to this request — study its anatomy (types → service → handler → tests → UI) before writing any code
+3. If the spec has `## Implementation Plan`: read it thoroughly —
+   this is your execution guide (files, code, architecture, order).
+   Follow as guidance. Hard constraints are `## Acceptance Criteria` only.
+4. If the spec has `## Source`: read referenced file for additional context
+5. Read the project's `CLAUDE.md` — these are your constraints
+6. Search memory for relevant patterns: `mcp__memory__search_nodes({ query: "patterns" })`
+7. Find an exemplar feature similar to this request — study its anatomy (types → service → handler → tests → UI) before writing any code
 
 ## Anti-Anchoring
 
@@ -38,21 +42,28 @@ Consider at least 3 implementation approaches before coding. Challenge your firs
 
 ## Build
 
-If `.claude/build/verify.sh` does not exist (LITE path — build-verify was skipped):
-  Read `.claude/skills/build-verify/verify-template.md` and generate verify.sh with V1-V3 baselines only.
+If `.workflow/build/verify.sh` does not exist (LITE path — build-verify was skipped):
+  Read `${CLAUDE_SKILL_DIR}/../build-verify/verify-template.md` and generate verify.sh with V1-V3 baselines only.
 
 Freedom in HOW. Hard constraints: spec acceptance criteria, CLAUDE.md conventions, verify.sh passes.
-Run `bash .claude/build/verify.sh {slug}` frequently as feedback loop. If the same approach fails twice, reconsider via Sequential Thinking.
+Run `bash .workflow/build/verify.sh {slug}` frequently as feedback loop. If the same approach fails twice, reconsider via Sequential Thinking.
 
 **verify.sh checks V1-V3 only:** unit tests, TypeScript, build.
 
-## Verify
+## V4+ Verification (enforced by Stop hook)
 
-After implementation, execute all V4+ verifications from the spec's `## Verification` section using Playwright MCP tools against the local dev server (`http://localhost:3001`). For each V4+: follow the human-steps, verify expected results are visible on screen.
+After V1-V3 pass, you MUST execute ALL V4+ tests. The Stop hook will BLOCK you from finishing until the v4-passed marker exists.
+
+1. Ensure dev server is running on port 3001
+2. For each V4+ test in the spec's `## Verification` section: execute the steps using Playwright MCP tools against `http://localhost:3001`
+3. After ALL V4+ pass, create the marker:
+   ```bash
+   date -u '+%Y-%m-%dT%H:%M:%SZ' > ".workflow/build/{slug}/v4-passed"
+   ```
 
 ## Notes
 
-Before signaling CERTIFYING, write `.claude/build/{slug}/implementation-notes.md`:
+Before signaling CERTIFYING, write `.workflow/build/{slug}/implementation-notes.md`:
 
 - **Approach:** which of the 2+ approaches was chosen and why
 - **Rejected:** what was considered and discarded (from anti-anchoring)
@@ -62,15 +73,15 @@ Before signaling CERTIFYING, write `.claude/build/{slug}/implementation-notes.md
 
 ## Done
 
-When `bash .claude/build/verify.sh {slug}` passes (V1-V3) AND all V4+ verifications pass via MCP: Status → `CERTIFYING`, implementation-notes.md written.
+When `bash .workflow/build/verify.sh {slug} --full` passes (V1-V3 + V4+): Status → `CERTIFYING`, implementation-notes.md written.
 
 Return ONLY: `{slug}: CERTIFYING`
 
-**If the agent returns with Status still BUILDING** (turn budget exhaustion): read `.claude/build/{slug}/implementation-notes.md`, then re-invoke `build-implement` — the fresh agent reads the notes as prior context.
+**If the agent returns with Status still BUILDING** (turn budget exhaustion): read `.workflow/build/{slug}/implementation-notes.md`, then re-invoke `build-implement` — the fresh agent reads the notes as prior context.
 
 ## Handoff
 
-Before returning, write `.claude/build/{slug}/next-action.md` — a single line:
+Before returning, write `.workflow/build/{slug}/next-action.md` — a single line:
 
 ```
 Skill("build-certify", args: "{slug}")
