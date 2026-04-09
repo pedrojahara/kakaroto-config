@@ -55,7 +55,7 @@ for dir in .workflow/resolve/*/; do
   [ -f "$DIAG" ] || continue
   STATUS=$(grep -m1 '^Status:' "$DIAG" | sed 's/Status: *//')
   case "$STATUS" in
-    INVESTIGATING|DIAGNOSED|FIXING|CERTIFYING)
+    INVESTIGATING|DIAGNOSED|VERIFIED|FIXING|CERTIFYING)
       SLUG=$(basename "$dir")
       OWNER_FILE="$dir/.build-owner"
 

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Stop hook for build-implementer and build-plan-implementer agents.
+# Stop hook for build-implementer agent.
 # Blocks stop if verify.sh --full fails for the active build.
 INPUT=$(cat)
 STOP_ACTIVE=$(echo "$INPUT" | jq -r '.stop_hook_active // false')

@@ -28,10 +28,9 @@ You receive `{slug}` from `$ARGUMENTS`.
    The plan has code snippets, parameters, architecture decisions.
    **When spec and plan conflict, plan wins** (written by user).
    When plan references code that no longer exists, trust current codebase.
-4. If the spec has `## Source`: read referenced file for additional context
-5. Read the project's `CLAUDE.md` — these are your constraints
-6. Search memory for relevant patterns: `mcp__memory__search_nodes({ query: "patterns" })`
-7. **(Skip if spec has `## Source`.)** Find an exemplar feature similar to this request — study its anatomy (types → service → handler → tests → UI) before writing any code
+4. Read the project's `CLAUDE.md` — these are your constraints
+5. Search memory for relevant patterns: `mcp__memory__search_nodes({ query: "patterns" })`
+6. **(Skip if spec has `## Source`.)** Find an exemplar feature similar to this request — study its anatomy (types → service → handler → tests → UI) before writing any code
 
 ## Anti-Anchoring
 

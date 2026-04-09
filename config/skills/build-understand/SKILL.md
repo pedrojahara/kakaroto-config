@@ -64,6 +64,8 @@ Return `{slug}: UNDERSTOOD` — **STOP. Do NOT proceed to Phase 0 or any subsequ
 
 ## Phase 0: LOAD TOOLS
 
+**Guard:** If you already returned `{slug}: UNDERSTOOD` in PLAN MODE above, you should NOT be here. Return immediately.
+
 Ensure AskUserQuestion is available: `ToolSearch("select:AskUserQuestion", max_results: 1)`
 
 ---

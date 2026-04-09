@@ -13,8 +13,8 @@ const CONFIG_DIR = path.join(PROJECT_ROOT, 'config');
 const PACKAGE_JSON = path.join(PROJECT_ROOT, 'package.json');
 
 // Exclusions - personal files not to publish
-const EXCLUDED_COMMANDS = ['audit-command', 'audit-command.md'];
-const EXCLUDED_SKILLS = ['build-plan', 'build-plan-spec', 'build-plan-implement', 'think'];
+const EXCLUDED_COMMANDS = [];
+const EXCLUDED_SKILLS = [];
 const EXCLUDED_AGENTS = [];
 
 // Semver validation regex
@@ -153,7 +153,7 @@ async function main() {
   console.log(`  1. Sync ${totalFiles} files from ~/.claude/ to config/`);
   console.log(`     - CLAUDE.md`);
   console.log(`     - ARCHITECTURE.md`);
-  console.log(`     - commands/ (${commandsCount} files, excluding audit-command)`);
+  console.log(`     - commands/ (${commandsCount} files)`);
   console.log(`     - agents/ (${agentsCount} files)`);
   console.log(`     - skills/ (${skillsCount} files)`);
   if (hooksCount > 0) {

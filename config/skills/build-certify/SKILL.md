@@ -150,4 +150,4 @@ If either marker is missing, verify.sh will FAIL — blocking DONE. NEVER create
 
 ## Output
 
-Return ONLY: `DONE: {slug}` or `{slug}: GATE` (when escalating). No summaries, no explanations. After deleting next-action.md and setting Status DONE, the build is complete.
+Return ONLY: `{slug}: DONE` or `{slug}: GATE` (when escalating). No summaries, no explanations. After deleting next-action.md and setting Status DONE, the build is complete.

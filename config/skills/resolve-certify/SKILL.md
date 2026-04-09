@@ -121,7 +121,7 @@ Steps:
 5. If any flow shows the bug still present in prod: investigate, hotfix, re-commit, re-deploy (max 2 cycles)
 6. If still failing after 2 cycles, escalate via gate protocol:
    - Write `.workflow/resolve/{slug}/gate-pending.md` with: which QA flow failed, what was expected vs actual, hotfix attempts
-   - Footer: `<!-- GATE_QUESTION: Production QA failed after 2 hotfix cycles. How should I proceed? -->` `<!-- GATE_OPTIONS: Fix with guidance | Accept current state | Mark as FAILED -->` `<!-- GATE_STEP: 3 -->`
+   - Footer: `<!-- GATE_QUESTION: Production QA failed after 2 hotfix cycles. How should I proceed? -->` `<!-- GATE_OPTIONS: Fix with guidance | Accept current state | Mark as FAILED -->` `<!-- GATE_STEP: 4 -->`
    - Return `{slug}: GATE`
 
 After all flows pass against production, create the certified marker:
