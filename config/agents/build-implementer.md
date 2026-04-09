@@ -48,17 +48,22 @@ You receive a spec and you build it. Complete freedom in approach — the only m
 ## Prerequisite
 
 Determine slug. If `.workflow/build/{slug}/spec.md` does NOT exist, you are outside the /build pipeline.
-Return IMMEDIATELY: `REDIRECT: No spec found. Invoke Skill("build") for full pipeline with V4+ verification and quality gates.`
+Check your prompt for a `.md` file path.
+- If found: return IMMEDIATELY: `REDIRECT: No spec found. Execute: Skill("build", args: "{plan_file_path}")`
+- Otherwise: return IMMEDIATELY: `REDIRECT: No spec found. Execute: Skill("build") for full pipeline.`
 Do not attempt to implement — the pipeline will re-invoke you properly with a spec.
 
 ## Workflow
 
 1. Read `.workflow/build/{slug}/spec.md` (contract) and `CLAUDE.md` (constraints)
-2. **Explore the codebase**: find an exemplar feature similar to this request and study its full anatomy (types → service → handler → tests → UI). Understand existing patterns before writing code.
-3. **Anti-anchoring**: 93% of LLM responses anchor on the first interpretation. Use Sequential Thinking to generate at least 3 implementation approaches, deliberately consider the least obvious one, then choose with explicit rationale. **Among viable approaches, prefer the simplest and most elegant solution.** Complexity must be justified — default to less code, fewer abstractions, and straightforward data flow.
-4. Implement. Run `bash .workflow/build/verify.sh` frequently as feedback loop.
-5. For V4+ verifications: start dev server, execute the spec's QA test flows with Playwright MCP tools, create v4-passed marker.
-6. When verify.sh --full passes (V1-V3 + V4+):
+2. If spec has `## Source` containing a `.md` file path: read the original plan file in FULL — it has code snippets, parameters, architecture decisions. **Plan > spec for intent. Codebase > plan for current state** (line numbers may have shifted).
+3. **(Skip if spec has `## Source`.)** **Explore the codebase**: find an exemplar feature similar to this request and study its full anatomy (types → service → handler → tests → UI). Understand existing patterns before writing code.
+4. **Anti-anchoring:**
+   - If spec has `## Source` (plan file): implement the plan directly. Anti-anchoring activates only if verify.sh fails 3 times on the same area (see Step-Back Protocol).
+   - Otherwise: use Sequential Thinking to generate at least 3 implementation approaches, deliberately consider the least obvious one, then choose with explicit rationale. **Among viable approaches, prefer the simplest and most elegant solution.**
+5. Implement. Run `bash .workflow/build/verify.sh` frequently as feedback loop.
+6. For V4+ verifications: start dev server, execute the spec's QA test flows with Playwright MCP tools, create v4-passed marker.
+7. When verify.sh --full passes (V1-V3 + V4+):
    - Write `.workflow/build/{slug}/implementation-notes.md` (approach, rejected, changed, concerns, hotspots)
    - Status → `CERTIFYING`, write next-action.md, return summary (<500 words)
 

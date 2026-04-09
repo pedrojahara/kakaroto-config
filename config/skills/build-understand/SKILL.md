@@ -30,6 +30,31 @@ can ask instead.
 
 **Input:** `$ARGUMENTS` = `{slug} {feature description or plan file path}`. Parse slug (first token), rest is context.
 
+## Input Mode Detection
+
+If the context (rest of $ARGUMENTS after slug) ends in `.md` AND the file exists → **PLAN MODE**.
+Otherwise → **DESCRIPTION MODE** — continue to Phase 0 below.
+
+### PLAN MODE
+
+The plan was collaboratively developed — it IS the approved intent.
+No interview. No confirmation gate. Convert to spec autonomously.
+
+**Override:** Do NOT call AskUserQuestion in plan mode.
+
+1. Read the plan file in full
+2. Search memory: `mcp__memory__search_nodes({ query: "relevant-topic" })`
+3. Explore codebase areas in plan (Glob/Grep/Read) — validate references exist
+4. Extract: What, Acceptance Criteria, Edge Cases, Constraints
+5. `## Implementation Plan` = ENTIRE plan content (Zero Information Loss)
+6. Read `${CLAUDE_SKILL_DIR}/spec-template.md`
+7. Write spec to `.workflow/build/{slug}/spec.md` — Status: UNDERSTOOD, Complexity: FULL
+8. `## Source` MUST contain the plan file path
+
+Return `{slug}: UNDERSTOOD` — **STOP. Do NOT proceed to Phase 0 or any subsequent phase.**
+
+---
+
 ## Boundaries
 
 - **Authority:** You may ONLY set Status to `DRAFTING` or `UNDERSTOOD`. Never write VERIFIED, BUILDING, CERTIFYING, or DONE.

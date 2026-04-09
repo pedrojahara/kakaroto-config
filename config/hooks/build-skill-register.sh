@@ -7,7 +7,7 @@ CWD=$(echo "$INPUT" | jq -r '.cwd // empty')
 [ -z "$CWD" ] && exit 0
 
 case "$SKILL" in
-  build-implement|build-verify|build-certify|build-understand|build-plan-spec|build-plan-implement)
+  build-implement|build-verify|build-certify|build-understand)
     SESSION_ID=$(echo "$INPUT" | jq -r '.session_id // empty')
     ARGS=$(echo "$INPUT" | jq -r '.tool_input.args // empty')
     SLUG=$(echo "$ARGS" | awk '{print $1}')

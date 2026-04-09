@@ -38,12 +38,15 @@ The installer will detect the existing `.claude/` folder and ask if you want to 
 ├── ARCHITECTURE.md        # Full documentation of the system
 ├── skills/                # Skill workflows (invoked via /skill)
 │   ├── build/SKILL.md         # /build orchestrator
-│   ├── build-understand/      # Phase: requirements alignment
+│   ├── build-understand/      # Phase: requirements (handles plan files too)
 │   ├── build-verify/          # Phase: QA verification design
 │   ├── build-implement/       # Phase: autonomous implementation
+│   ├── build-certify/         # Phase: quality + deploy + prod verification
 │   ├── resolve/SKILL.md       # /resolve orchestrator
 │   ├── resolve-investigate/   # Phase: diagnosis + QA reproduction
+│   ├── resolve-verify/        # Phase: user reviews diagnosis + QA flows
 │   ├── resolve-fix/           # Phase: autonomous fix + local QA
+│   ├── resolve-certify/       # Phase: deploy + production QA
 │   └── deliberate/            # /deliberate - adversarial solution design
 ├── commands/              # Commands (invoked via /command)
 │   └── gate.md            # /gate - quality gate before PR
@@ -182,17 +185,26 @@ resolve-certify     -> Quality agents + deploy + production QA
 Done (trivial bugs skip directly from investigate)
 ```
 
-## Project-Specific Skills
+## Customizing for Your Project
 
-The certify and verify phases contain project-specific deploy and verification logic. They are referenced by the orchestrators but **not included** in this package:
+The certify skills automatically discover deploy and auth configuration from your project's `CLAUDE.md`. Add a `## Deploy` section to enable production verification:
 
-- `build-certify/` — Quality agents, deploy, production V4+ verification
-- `resolve-certify/` — Deploy, production QA verification
-- `resolve-verify/` — User reviews diagnosis + QA flows before fix
-- `build-plan-spec/` — Converts plan file into spec (used in plan mode)
-- `build-plan-implement/` — Plan-first implementation with anti-anchoring on failure
+```markdown
+## Deploy
 
-Projects should provide their own implementations or these phases will be skipped gracefully.
+### Commands
+- Backend: `bash scripts/deploy.sh`
+- Verify: `bash scripts/verify.sh`
+
+### Production Auth
+- API: `X-API-Key` header with API_KEY from .env
+- Browser: use `e2eLogin()` helper for browser tests
+
+### Production Logs
+- `bash scripts/logs.sh`
+```
+
+Without this section, certify runs quality agents and commits but skips deploy and production verification.
 
 ## Requirements
 
@@ -228,8 +240,7 @@ This command will:
 
 **Files excluded:**
 - `audit-command/` (personal)
-- `build-certify/`, `resolve-certify/`, `resolve-verify/` (project-specific deploy/verify)
-- `build-plan*/`, `think/` (deprecated/personal)
+- `build-plan/`, `think/` (personal)
 - Session data (`plans/`, `specs/`, `interviews/`, etc.)
 
 ## License

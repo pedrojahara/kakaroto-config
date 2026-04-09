@@ -12,12 +12,12 @@
 │   ├── build-understand/SKILL.md (+ spec-template.md)
 │   ├── build-verify/SKILL.md     (+ verify-template.md)
 │   ├── build-implement/SKILL.md
-│   ├── build-certify/SKILL.md    (project-specific, not distributed)
+│   ├── build-certify/SKILL.md    (quality + deploy + prod verification)
 │   ├── resolve/SKILL.md          (orquestrador)
 │   ├── resolve-investigate/SKILL.md (+ diagnosis-template.md)
-│   ├── resolve-verify/SKILL.md   (project-specific, not distributed)
+│   ├── resolve-verify/SKILL.md   (user reviews diagnosis + QA flows)
 │   ├── resolve-fix/SKILL.md
-│   ├── resolve-certify/SKILL.md  (project-specific, not distributed)
+│   ├── resolve-certify/SKILL.md  (deploy + prod QA verification)
 │   └── deliberate/SKILL.md       (+ output/standalone templates)
 ├── hooks/
 │   ├── build-stop-guard.sh       (Stop: prevents stop during active workflow)
@@ -50,8 +50,8 @@ Projetos adicionam `projeto/.claude/commands/` para skills locais (ex: `/deploy`
 
 Lifecycle: `DRAFTING -> UNDERSTOOD -> VERIFIED -> BUILDING -> CERTIFYING -> DONE`
 
-Accepts description or `.md` plan file path (auto-detected).
-Plan mode uses `build-plan-spec` + `build-plan-implement` (project-specific, not distributed).
+Accepts description or `.md` plan file path (auto-detected by build-understand).
+Plan files skip the interview and confirmation gate — the plan IS the approved intent.
 
 Routing: CLAUDE.md detecta trigger "criar/adicionar/implementar" -> `/build`
 
@@ -132,17 +132,27 @@ Regras: `STATUS=FAIL + BLOCKING=true` -> workflow PARA. `BLOCKING=false` -> cont
 
 ---
 
-## Project-Specific Skills (not distributed)
+## Project Configuration
 
-These skills contain project-specific deploy and verification logic. They are referenced by the orchestrators but NOT included in the npm package:
+Certify skills discover deploy and auth config from the project's CLAUDE.md:
 
-- `build-certify/SKILL.md` — Quality agents, deploy, production V4+ verification
-- `resolve-certify/SKILL.md` — Deploy, production QA verification
-- `resolve-verify/SKILL.md` — User reviews diagnosis + QA flows before fix
-- `build-plan-spec/SKILL.md` — Converts plan file into spec (used in plan mode)
-- `build-plan-implement/SKILL.md` — Plan-first implementation with anti-anchoring on failure
+```markdown
+## Deploy
 
-Projects must provide their own implementations or these phases will be skipped.
+### Commands
+- Backend: `bash scripts/deploy.sh`
+- Verify: `bash scripts/verify.sh`
+
+### Production Auth
+- API: `X-API-Key` header with API_KEY from .env
+- Browser: use `e2eLogin()` helper for browser tests
+
+### Production Logs
+- `bash scripts/logs.sh`
+```
+
+**Discovery chain:** Project CLAUDE.md `## Deploy` → Memory → skip gracefully.
+Without `## Deploy`, certify runs quality agents + commit but skips deploy and prod verification.
 
 ---
 

@@ -106,9 +106,6 @@ async function main() {
 
   // Clean up deprecated paths from previous versions
   const DEPRECATED_DIRS = [
-    'skills/build-certify',
-    'skills/resolve-certify',
-    'skills/resolve-verify',
     'skills/build-plan',
     'skills/build-plan-spec',
     'skills/build-plan-implement',
@@ -135,6 +132,59 @@ async function main() {
 
   try {
     copyRecursive(CONFIG_DIR, CLAUDE_DIR);
+
+    // Merge settings.json hooks (settings-template.json → settings.json)
+    const settingsTemplatePath = path.join(CLAUDE_DIR, 'settings-template.json');
+    const settingsPath = path.join(CLAUDE_DIR, 'settings.json');
+
+    if (fs.existsSync(settingsTemplatePath)) {
+      const template = JSON.parse(fs.readFileSync(settingsTemplatePath, 'utf8'));
+      let settings = {};
+
+      if (fs.existsSync(settingsPath)) {
+        try {
+          settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+        } catch (e) {
+          console.warn('  Warning: existing settings.json is invalid JSON, creating new one');
+          settings = {};
+        }
+      }
+
+      // Remove existing hooks that reference our hook scripts
+      if (settings.hooks) {
+        for (const event of Object.keys(settings.hooks)) {
+          if (Array.isArray(settings.hooks[event])) {
+            settings.hooks[event] = settings.hooks[event].filter(entry => {
+              const hookStr = JSON.stringify(entry);
+              return !hookStr.includes('.claude/hooks/');
+            });
+            if (settings.hooks[event].length === 0) {
+              delete settings.hooks[event];
+            }
+          }
+        }
+        if (Object.keys(settings.hooks).length === 0) {
+          delete settings.hooks;
+        }
+      }
+
+      // Merge template hooks
+      if (!settings.hooks) {
+        settings.hooks = {};
+      }
+      for (const [event, entries] of Object.entries(template.hooks)) {
+        if (!settings.hooks[event]) {
+          settings.hooks[event] = [];
+        }
+        settings.hooks[event].push(...entries);
+      }
+
+      fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + '\n');
+      console.log('  + settings.json (hooks merged)');
+
+      // Remove template file from target
+      fs.unlinkSync(settingsTemplatePath);
+    }
 
     console.log('\n✅ Installation complete!\n');
     console.log('Next steps:');

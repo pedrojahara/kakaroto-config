@@ -14,8 +14,8 @@ const PACKAGE_JSON = path.join(PROJECT_ROOT, 'package.json');
 
 // Exclusions - personal files not to publish
 const EXCLUDED_COMMANDS = ['audit-command', 'audit-command.md'];
-const EXCLUDED_SKILLS = ['build-plan', 'build-plan-spec', 'build-plan-implement', 'resolve-verify', 'build-certify', 'resolve-certify', 'think'];
-const EXCLUDED_AGENTS = ['build-plan-implementer.md'];
+const EXCLUDED_SKILLS = ['build-plan', 'build-plan-spec', 'build-plan-implement', 'think'];
+const EXCLUDED_AGENTS = [];
 
 // Semver validation regex
 const SEMVER_REGEX = /^\d+\.\d+\.\d+$/;

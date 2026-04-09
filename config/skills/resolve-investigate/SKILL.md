@@ -81,10 +81,12 @@ Write a test that FAILS right now, proving the bug exists:
 
 ### B. Production/Browser Reproduction
 
-**Production Auth:** Search `mcp__memory__search_nodes({ query: "production-testing" })` for auth methods.
-- **API testing (preferred):** Use `X-API-Key` header with the admin key from Secret Manager (`sm-global-admin-api-key`). Fastest for verifying API endpoints.
+**Production Auth Discovery:**
+1. Read project CLAUDE.md — look for `## Deploy` section with auth method, prod URL, and log commands.
+2. Search `mcp__memory__search_nodes({ query: "production-testing" })` for supplementary auth context.
 - **Local browser:** Use Playwright MCP against localhost:3001 (dev server). Works without auth.
-- **Production browser:** Playwright MCP does NOT work with Firebase Auth. Use standalone `chromium.launch()` if needed.
+- **Production API:** Use the discovered auth method from CLAUDE.md against the production URL.
+- **Production browser:** Use discovered auth; write standalone Playwright script if browser reproduction is needed.
 
 For local reproduction:
 1. Check if dev server is running on `http://localhost:3001`. If not, start it: `npm run dev &` and wait for ready.
@@ -93,8 +95,8 @@ For local reproduction:
 4. Record the EXACT flow that reproduced it + evidence (console errors, visual state)
 
 For production-only bugs (infra/proxy/timeout issues):
-1. Use curl with `X-API-Key` header against the production URL to test API endpoints
-2. Check production logs: `npx tsx scripts/query-prod-logs.ts --level 2`
+1. Use the discovered auth method against the production URL to test API endpoints
+2. Check production logs using the log command from CLAUDE.md `## Deploy` section
 3. If you cannot reproduce after thorough attempts: document what you tried and why reproduction failed
 
 ### C. Design QA Reproduction Flows (for diagnosis)

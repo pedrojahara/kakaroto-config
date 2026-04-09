@@ -1,6 +1,6 @@
 ---
 name: build
-description: "Agentic feature development. Accepts a description or a plan file."
+description: "Agentic feature development. Aligns with user, builds freely, certifies quality."
 disable-model-invocation: true
 model: opus
 allowed-tools:
@@ -37,12 +37,10 @@ RIGHT:
 
 0. Load deferred tools: `ToolSearch("select:AskUserQuestion", max_results: 1)`
 
-1. **Detect mode from `$ARGUMENTS`:**
-   - If `$ARGUMENTS` ends in `.md` and the file exists → **PLAN MODE**.
-     Set `plan_file` = the file path. Generate slug from plan filename + date
-     (strip `.md` extension and path prefix, keep slug portion, append today's date).
-   - Otherwise → **DESCRIPTION MODE**.
-     Generate slug from `$ARGUMENTS` (first keyword + date, e.g., `auth-2026-02-24`).
+1. **Generate slug from `$ARGUMENTS`:**
+   - If `$ARGUMENTS` ends in `.md` → slug from filename + date
+     (strip `.md` extension and path prefix, append today's date).
+   - Otherwise → slug from first keyword + date (e.g., `auth-2026-02-24`).
 
 2. **RECOVERY** — Read `.workflow/build/{slug}/spec.md` Status:
    - `BUILDING` → jump to step 6
@@ -53,9 +51,7 @@ RIGHT:
    - `DRAFTING` → jump to step 3
    - Otherwise (no spec / no status) → continue to step 3
 
-3. **Align:**
-   - **PLAN MODE** → Skill("build-plan-spec", args: "{slug} {plan_file}")
-   - **DESCRIPTION MODE** → Skill("build-understand", args: "{slug} {$ARGUMENTS}")
+3. Skill("build-understand", args: "{slug} {$ARGUMENTS}")
    Read `.workflow/build/{slug}/spec.md` Status:
    - `UNDERSTOOD` → proceed to step 4
    - Spec missing or Status not UNDERSTOOD → build cancelled, inform user, exit
@@ -65,11 +61,8 @@ RIGHT:
    - `VERIFIED` → proceed to step 5
    - Otherwise → re-invoke (max 1). If still not VERIFIED → AskUserQuestion to escalate.
 
-5. **Implement:**
-   Edit spec Status → `BUILDING`
-   Detect plan file: read spec `## Source` section. If it contains a `.md` file path, set `plan_file` to that path.
-   - **Has plan_file** → Skill("build-plan-implement", args: "{slug} {plan_file}")
-   - **No plan_file** → Skill("build-implement", args: "{slug}")
+5. Edit spec Status → `BUILDING`
+   Skill("build-implement", args: "{slug}")
    — After return: proceed to step 6.
    If Status still BUILDING after return: re-invoke (max 2). If stuck → AskUserQuestion.
 

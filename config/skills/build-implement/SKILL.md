@@ -24,14 +24,19 @@ You receive `{slug}` from `$ARGUMENTS`.
 2. If the spec has `## Implementation Plan`: read it thoroughly —
    this is your execution guide (files, code, architecture, order).
    Follow as guidance. Hard constraints are `## Acceptance Criteria` only.
-3. If the spec has `## Source`: read referenced file for additional context
-4. Read the project's `CLAUDE.md` — these are your constraints
-5. Search memory for relevant patterns: `mcp__memory__search_nodes({ query: "patterns" })`
-6. Find an exemplar feature similar to this request — study its anatomy (types → service → handler → tests → UI) before writing any code
+3. If the spec has `## Source` containing a `.md` file path: read the original plan file in FULL.
+   The plan has code snippets, parameters, architecture decisions.
+   **When spec and plan conflict, plan wins** (written by user).
+   When plan references code that no longer exists, trust current codebase.
+4. If the spec has `## Source`: read referenced file for additional context
+5. Read the project's `CLAUDE.md` — these are your constraints
+6. Search memory for relevant patterns: `mcp__memory__search_nodes({ query: "patterns" })`
+7. **(Skip if spec has `## Source`.)** Find an exemplar feature similar to this request — study its anatomy (types → service → handler → tests → UI) before writing any code
 
 ## Anti-Anchoring
 
-Consider at least 3 implementation approaches before coding. Challenge your first instinct: what assumptions am I making? What breaks if I'm wrong? Use Sequential Thinking for complex decisions.
+- If spec has `## Source` (plan file): implement the plan directly. Anti-anchoring activates only if verify.sh fails 3 times on the same area.
+- Otherwise: consider at least 3 implementation approaches before coding. Challenge your first instinct: what assumptions am I making? What breaks if I'm wrong? Use Sequential Thinking for complex decisions.
 
 **Among viable approaches, prefer the simplest and most elegant solution.** Default to less code, fewer abstractions, and straightforward data flow.
 

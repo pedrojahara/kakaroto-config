@@ -65,10 +65,10 @@ If the same approach fails twice, use Sequential Thinking to reconsider.
 
 After unit tests pass, execute ALL QA Reproduction Flows from the diagnosis:
 
-**Auth methods** (search `mcp__memory__search_nodes({ query: "production-testing" })` for details):
+**Auth Discovery:** Read project CLAUDE.md `## Deploy` section for auth method and prod URL. Also search `mcp__memory__search_nodes({ query: "production-testing" })`.
 - **Local browser:** Playwright MCP against `http://localhost:3001` (no auth needed in dev)
-- **API testing:** curl with `X-API-Key` header (admin key from Secret Manager `sm-global-admin-api-key`)
-- **Production-only bugs:** If the bug only manifests in production (infra/proxy/timeout), use API key + curl against the production URL. Check logs via `npx tsx scripts/query-prod-logs.ts --level 2`.
+- **API testing:** Use the discovered auth method from CLAUDE.md
+- **Production-only bugs:** If the bug only manifests in production, use discovered auth against the production URL. Check logs using the log command from CLAUDE.md `## Deploy` section.
 
 Steps:
 1. For browser-testable flows: ensure dev server is running, use Playwright MCP against localhost

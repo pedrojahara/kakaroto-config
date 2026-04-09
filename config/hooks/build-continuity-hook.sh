@@ -18,7 +18,7 @@ SKILL=$(echo "$INPUT" | jq -r '.tool_input.skill // empty')
 # Gate 1: only process build/resolve sub-skills
 TYPE=""
 case "$SKILL" in
-  build-understand|build-plan-spec|build-verify|build-implement|build-plan-implement|build-certify)
+  build-understand|build-verify|build-implement|build-certify)
     TYPE="build" ;;
   resolve-investigate|resolve-verify|resolve-fix|resolve-certify)
     TYPE="resolve" ;;
@@ -57,13 +57,13 @@ NEXT=""
 SPEC_FILE="$CWD/.workflow/$TYPE/$SLUG/spec.md"
 
 case "$SKILL" in
-  build-understand|build-plan-spec)
+  build-understand)
     NEXT="Execute: Skill(\"build-verify\", args: \"$SLUG\")"
     ;;
   build-verify)
     NEXT="Edit spec Status to BUILDING, then execute the implement skill per the orchestrator algorithm."
     ;;
-  build-implement|build-plan-implement)
+  build-implement)
     NEXT="Execute: Skill(\"build-certify\", args: \"$SLUG\")"
     ;;
   build-certify)
