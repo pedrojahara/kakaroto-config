@@ -58,14 +58,7 @@ SPEC_FILE="$CWD/.workflow/$TYPE/$SLUG/spec.md"
 
 case "$SKILL" in
   build-understand|build-plan-spec)
-    if [ -f "$SPEC_FILE" ]; then
-      COMPLEXITY=$(grep -m1 '^Complexity:' "$SPEC_FILE" 2>/dev/null | sed 's/^Complexity:[[:space:]]*//' || echo "")
-      if [ "$COMPLEXITY" = "FULL" ]; then
-        NEXT="Execute: Skill(\"build-verify\", args: \"$SLUG\")"
-      elif [ "$COMPLEXITY" = "LITE" ]; then
-        NEXT="Edit spec Status to BUILDING, then execute the implement skill per the algorithm."
-      fi
-    fi
+    NEXT="Execute: Skill(\"build-verify\", args: \"$SLUG\")"
     ;;
   build-verify)
     NEXT="Edit spec Status to BUILDING, then execute the implement skill per the orchestrator algorithm."

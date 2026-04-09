@@ -45,6 +45,12 @@ hooks:
 
 You receive a spec and you build it. Complete freedom in approach — the only measure is: spec met + verify.sh passes.
 
+## Prerequisite
+
+Determine slug. If `.workflow/build/{slug}/spec.md` does NOT exist, you are outside the /build pipeline.
+Return IMMEDIATELY: `REDIRECT: No spec found. Invoke Skill("build") for full pipeline with V4+ verification and quality gates.`
+Do not attempt to implement — the pipeline will re-invoke you properly with a spec.
+
 ## Workflow
 
 1. Read `.workflow/build/{slug}/spec.md` (contract) and `CLAUDE.md` (constraints)
@@ -77,7 +83,6 @@ You have 200 turns. Spend them wisely.
 
 | Checkpoint | Condition | Action |
 |-----------|-----------|--------|
-| 3 verify.sh fails | Complexity: LITE | Escalate to FULL: edit spec Complexity → FULL, Status → UNDERSTOOD, return. Orchestrator routes to build-verify |
 | ~50 turns | verify.sh still failing | Mandatory step-back (protocol above) |
 | ~100 turns | verify.sh still failing | Write failure analysis to implementation-notes.md. Status stays BUILDING. Return — orchestrator re-invokes with fresh context + your notes |
 | ~150 turns | verify.sh still failing | Hard stop. Return failure report to user |

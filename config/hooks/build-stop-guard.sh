@@ -1,6 +1,6 @@
 #!/bin/bash
 # Stop hook: prevents the owning session from stopping while /build or /resolve is active.
-# Reads next-action.md directly and injects the exact Skill() call.
+# Derives next action from spec/diagnosis Status (source of truth), with next-action.md as override.
 #
 # OWNERSHIP MODEL:
 # - PreToolUse hook on Skill claims ownership when build/resolve sub-skills are invoked
@@ -25,62 +25,89 @@ SESSION_ID=$(echo "$INPUT" | jq -r '.session_id // empty')
 CWD=$(echo "$INPUT" | jq -r '.cwd // empty')
 [ -z "$CWD" ] && exit 0
 
-for dir in "$CWD"/.workflow/build/*/; do
-  [ -d "$dir" ] || continue
-  NA="$dir/next-action.md"
-  OWNER="$dir/.build-owner"
+# Derive next action from spec.md Status for /build workflows
+derive_build_action() {
+  local SPEC="$1" SLUG="$2"
+  local STATUS
+  STATUS=$(grep -m1 '^Status:' "$SPEC" 2>/dev/null | sed 's/^Status:[[:space:]]*//' || echo "")
 
-  # No next-action → clean up stale owner
-  if [ ! -f "$NA" ]; then
-    rm -f "$OWNER"
-    continue
-  fi
+  case "$STATUS" in
+    UNDERSTOOD)
+      echo "Skill(\"build-verify\", args: \"$SLUG\")" ;;
+    VERIFIED)
+      echo "Edit spec Status to BUILDING, then execute the implement skill per the /build algorithm." ;;
+    BUILDING)
+      echo "Execute the implement skill per the /build algorithm for slug $SLUG." ;;
+    CERTIFYING)
+      echo "Skill(\"build-certify\", args: \"$SLUG\")" ;;
+  esac
+}
 
-  # next-action.md exists — only block if we're the owner
-  if [ -f "$OWNER" ] && [ "$(cat "$OWNER")" = "$SESSION_ID" ]; then
+# Derive next action from diagnosis.md Status for /resolve workflows
+derive_resolve_action() {
+  local SPEC="$1" SLUG="$2"
+  local STATUS
+  STATUS=$(grep -m1 '^Status:' "$SPEC" 2>/dev/null | sed 's/^Status:[[:space:]]*//' || echo "")
+
+  case "$STATUS" in
+    DIAGNOSED)
+      echo "Skill(\"resolve-verify\", args: \"$SLUG\")" ;;
+    VERIFIED)
+      echo "Edit Status to FIXING, then execute: Skill(\"resolve-fix\", args: \"$SLUG\")" ;;
+    FIXING)
+      echo "Skill(\"resolve-fix\", args: \"$SLUG\")" ;;
+    CERTIFYING)
+      echo "Skill(\"resolve-certify\", args: \"$SLUG\")" ;;
+  esac
+}
+
+# Generic workflow checker for both /build and /resolve
+check_workflow() {
+  local TYPE="$1" SPEC_NAME="$2"
+
+  for dir in "$CWD"/.workflow/$TYPE/*/; do
+    [ -d "$dir" ] || continue
+    local OWNER="$dir/.build-owner"
+
+    # Only check workflows we own
+    [ -f "$OWNER" ] && [ "$(cat "$OWNER" 2>/dev/null)" = "$SESSION_ID" ] || continue
     touch "$OWNER"
-    SLUG=$(basename "$dir")
-    ACTION=$(head -1 "$NA" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
 
-    if echo "$ACTION" | grep -qE '^Skill\('; then
-      log "BLOCK: slug=$SLUG action=$ACTION"
+    local SLUG ACTION=""
+    SLUG=$(basename "$dir")
+
+    # Priority 1: next-action.md (explicit handoff from forked agent)
+    local NA="$dir/next-action.md"
+    if [ -f "$NA" ]; then
+      ACTION=$(head -1 "$NA" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
+    fi
+
+    # Priority 2: derive from spec/diagnosis Status
+    if [ -z "$ACTION" ]; then
+      local SPEC="$dir/$SPEC_NAME"
+      if [ -f "$SPEC" ]; then
+        case "$TYPE" in
+          build)   ACTION=$(derive_build_action "$SPEC" "$SLUG") ;;
+          resolve) ACTION=$(derive_resolve_action "$SPEC" "$SLUG") ;;
+        esac
+      fi
+    fi
+
+    # Block if action found
+    if [ -n "$ACTION" ]; then
+      log "BLOCK: $TYPE slug=$SLUG action=$ACTION"
       echo "STOP BLOCKED — Execute immediately: $ACTION"
       exit 2
-    else
-      log "DEGRADE: slug=$SLUG action='$ACTION' (not Skill call)"
-      exit 0
     fi
-  fi
-done
 
-# Same logic for /resolve workflows
-for dir in "$CWD"/.workflow/resolve/*/; do
-  [ -d "$dir" ] || continue
-  NA="$dir/next-action.md"
-  OWNER="$dir/.build-owner"
-
-  # No next-action -> clean up stale owner
-  if [ ! -f "$NA" ]; then
+    # No action → terminal state (DONE/CANCELLED/VERIFIED_PROD), clean up
+    log "CLEAN: $TYPE slug=$SLUG (terminal state)"
     rm -f "$OWNER"
-    continue
-  fi
+  done
+}
 
-  # next-action.md exists -- only block if we're the owner
-  if [ -f "$OWNER" ] && [ "$(cat "$OWNER")" = "$SESSION_ID" ]; then
-    touch "$OWNER"
-    SLUG=$(basename "$dir")
-    ACTION=$(head -1 "$NA" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
-
-    if echo "$ACTION" | grep -qE '^Skill\('; then
-      log "BLOCK: resolve slug=$SLUG action=$ACTION"
-      echo "STOP BLOCKED — Execute immediately: $ACTION"
-      exit 2
-    else
-      log "DEGRADE: resolve slug=$SLUG action='$ACTION' (not Skill call)"
-      exit 0
-    fi
-  fi
-done
+check_workflow "build" "spec.md"
+check_workflow "resolve" "diagnosis.md"
 
 log "PASS: no owned builds/resolves for session=$SESSION_ID"
 exit 0

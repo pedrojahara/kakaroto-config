@@ -6,7 +6,7 @@ Generate `.workflow/build/{slug}/spec.md` using this template. Replace all `{pla
 # {Feature Title}
 
 Status: UNDERSTOOD
-Complexity: {LITE | FULL}
+Complexity: FULL
 
 ## What
 What this feature does, in plain language, from the user's perspective.
@@ -42,8 +42,7 @@ Organize into logical subsections preserving the plan's structure.}
 
 ## Rules
 
-- `Complexity: LITE` when ALL: single-pattern change, 1-3 files, no new UI flow/data model/endpoint
-- `Complexity: FULL` otherwise (default if unsure)
+- `Complexity: FULL` — always set to FULL
 - Status goes to `UNDERSTOOD` — the understanding gate already passed
 - Sections above `## Implementation Plan` describe WHAT (executive summary)
 - `## Implementation Plan` preserves EVERYTHING from the plan — code, files, architecture, execution order

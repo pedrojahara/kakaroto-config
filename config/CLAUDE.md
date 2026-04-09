@@ -21,6 +21,10 @@ FAZER, não perguntar. BUSCAR, não pedir contexto.
 Código sem teste = PR rejeitado.
 Exceções: config files, .d.ts, UI puro sem lógica.
 
+## Agents Internos
+Para executar planos: `/build <path-do-plano>` (não Agent direto).
+Se Agent retornar "REDIRECT": seguir a instrução — invocar o Skill indicado.
+
 ## Memory
 Namespace: ver CLAUDE.md do projeto.
 Sincronizar via `memory-sync` ao final de workflows.

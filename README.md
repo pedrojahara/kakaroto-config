@@ -41,15 +41,19 @@ The installer will detect the existing `.claude/` folder and ask if you want to 
 │   ├── build-understand/      # Phase: requirements alignment
 │   ├── build-verify/          # Phase: QA verification design
 │   ├── build-implement/       # Phase: autonomous implementation
-│   ├── certify/               # Phase: quality + deploy + prod verification
 │   ├── resolve/SKILL.md       # /resolve orchestrator
 │   ├── resolve-investigate/   # Phase: diagnosis + QA reproduction
 │   ├── resolve-fix/           # Phase: autonomous fix + local QA
 │   └── deliberate/            # /deliberate - adversarial solution design
 ├── commands/              # Commands (invoked via /command)
 │   └── gate.md            # /gate - quality gate before PR
-├── hooks/                 # Agent stop hooks
-│   └── build-implement-stop.sh
+├── hooks/                 # Workflow lifecycle hooks
+│   ├── build-stop-guard.sh       # Prevents stop during active workflow
+│   ├── build-continuity-hook.sh  # Injects next action between phases
+│   ├── build-skill-register.sh   # Claims session ownership
+│   ├── build-session-recovery.sh # Detects and resumes stalled workflows
+│   ├── build-implement-stop.sh   # Enforces verify.sh for agents
+│   └── ask-user-empty-guard.sh   # Rejects empty AskUserQuestion responses
 └── agents/                # 8 specialized agents
     ├── build-implementer.md
     ├── resolve-fixer.md
@@ -67,7 +71,7 @@ The installer will detect the existing `.claude/` folder and ask if you want to 
 |------|------|---------|-------------|
 | `/deliberate` | Skill | Manual | Adversarial solution designer: challenges framing, simulates scenarios as temporal narratives |
 | `/build` | Skill | "adicionar", "implementar", "criar" | Full feature workflow: understand -> verify -> implement -> certify. Accepts plan files (.md paths) |
-| `/resolve` | Skill | "bug", "erro", "problema" | Bug resolution: investigate -> fix -> certify |
+| `/resolve` | Skill | "bug", "erro", "problema" | Bug resolution: investigate -> verify -> fix -> certify |
 | `/gate` | Command | Manual | Run quality agents before PR |
 
 ### Workflow Chain
@@ -79,7 +83,7 @@ The installer will detect the existing `.claude/` folder and ask if you want to 
 ```
 
 ```
-/resolve               Autonomous bug fix: diagnose -> fix -> certify
+/resolve               Autonomous bug fix: diagnose -> verify -> fix -> certify
 ```
 
 ## Agents (Subagents)
@@ -171,11 +175,24 @@ User: "erro ao salvar formulario"
 Claude automatically triggers /resolve
          |
 resolve-investigate -> Diagnoses root cause + QA reproduction flows
+resolve-verify      -> User reviews diagnosis + approves QA flows
 resolve-fix         -> Autonomous fix + local QA verification
-certify             -> Quality agents + deploy + production QA
+resolve-certify     -> Quality agents + deploy + production QA
          |
 Done (trivial bugs skip directly from investigate)
 ```
+
+## Project-Specific Skills
+
+The certify and verify phases contain project-specific deploy and verification logic. They are referenced by the orchestrators but **not included** in this package:
+
+- `build-certify/` — Quality agents, deploy, production V4+ verification
+- `resolve-certify/` — Deploy, production QA verification
+- `resolve-verify/` — User reviews diagnosis + QA flows before fix
+- `build-plan-spec/` — Converts plan file into spec (used in plan mode)
+- `build-plan-implement/` — Plan-first implementation with anti-anchoring on failure
+
+Projects should provide their own implementations or these phases will be skipped gracefully.
 
 ## Requirements
 
@@ -205,12 +222,14 @@ This command will:
 - `CLAUDE.md`, `ARCHITECTURE.md`
 - `skills/` (build, resolve, deliberate workflows)
 - `commands/` (gate)
-- `agents/` (all subagents)
-- `hooks/` (agent stop hooks)
+- `agents/` (all 8 subagents)
+- `hooks/` (6 lifecycle hooks)
 - `templates/` (if present)
 
 **Files excluded:**
 - `audit-command/` (personal)
+- `build-certify/`, `resolve-certify/`, `resolve-verify/` (project-specific deploy/verify)
+- `build-plan*/`, `think/` (deprecated/personal)
 - Session data (`plans/`, `specs/`, `interviews/`, etc.)
 
 ## License

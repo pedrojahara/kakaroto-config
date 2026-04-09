@@ -21,28 +21,23 @@ You receive `{slug}` from `$ARGUMENTS`.
 ## Setup
 
 1. Read `.workflow/build/{slug}/spec.md` — this is your contract
-2. Check `Complexity` field:
-   - **FULL:** proceed with steps 3-7 below
-   - **LITE:** skip to Build (no exemplar study, no anti-anchoring required)
-3. If the spec has `## Implementation Plan`: read it thoroughly —
+2. If the spec has `## Implementation Plan`: read it thoroughly —
    this is your execution guide (files, code, architecture, order).
    Follow as guidance. Hard constraints are `## Acceptance Criteria` only.
-4. If the spec has `## Source`: read referenced file for additional context
-5. Read the project's `CLAUDE.md` — these are your constraints
-6. Search memory for relevant patterns: `mcp__memory__search_nodes({ query: "patterns" })`
-7. Find an exemplar feature similar to this request — study its anatomy (types → service → handler → tests → UI) before writing any code
+3. If the spec has `## Source`: read referenced file for additional context
+4. Read the project's `CLAUDE.md` — these are your constraints
+5. Search memory for relevant patterns: `mcp__memory__search_nodes({ query: "patterns" })`
+6. Find an exemplar feature similar to this request — study its anatomy (types → service → handler → tests → UI) before writing any code
 
 ## Anti-Anchoring
 
-**Skip if Complexity: LITE.**
-
 Consider at least 3 implementation approaches before coding. Challenge your first instinct: what assumptions am I making? What breaks if I'm wrong? Use Sequential Thinking for complex decisions.
 
-**Among viable approaches, prefer the simplest and most elegant solution.** Complexity must be justified — default to less code, fewer abstractions, and straightforward data flow.
+**Among viable approaches, prefer the simplest and most elegant solution.** Default to less code, fewer abstractions, and straightforward data flow.
 
 ## Build
 
-If `.workflow/build/verify.sh` does not exist (LITE path — build-verify was skipped):
+If `.workflow/build/verify.sh` does not exist:
   Read `${CLAUDE_SKILL_DIR}/../build-verify/verify-template.md` and generate verify.sh with V1-V3 baselines only.
 
 Freedom in HOW. Hard constraints: spec acceptance criteria, CLAUDE.md conventions, verify.sh passes.

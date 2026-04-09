@@ -33,7 +33,7 @@ can ask instead.
 ## Boundaries
 
 - **Authority:** You may ONLY set Status to `DRAFTING` or `UNDERSTOOD`. Never write VERIFIED, BUILDING, CERTIFYING, or DONE.
-- **Scope:** You may read implementation code to understand what exists and how things currently work. Do NOT make implementation decisions — that is build-implement's job.
+- **Scope:** You may read implementation code to understand what exists and how things currently work. Do NOT make implementation decisions — that is the implement phase's job.
 
 ---
 
@@ -170,12 +170,9 @@ Form a clear picture of:
 - **What is NOT in scope** — explicit exclusions
 - **Assumptions validated/refuted** from the collaborative analysis
 
-### Classify Complexity
+### Complexity
 
-- Follows an existing pattern exactly? → LITE candidate
-- New UI flow, data model, or endpoint? → FULL
-- Touches 4+ files or crosses architectural boundaries? → FULL
-- Unsure? → FULL (safe default)
+Always set `Complexity: FULL`.
 
 ### Write Draft Spec + Confirm
 
@@ -203,8 +200,7 @@ MUST appear in the spec.
 ### Handle Response
 
 **If "Correct":**
-- **LITE:** Skip refinement, go to Finalize.
-- **FULL:** Perform final gap analysis:
+Perform final gap analysis:
   - If we build exactly this spec, what could go wrong?
   - Are there spec-level gaps (change WHAT) vs implementation-level (change HOW)?
   - If spec-level gaps found (max 2-3): one more AskUserQuestion with the concrete gaps.
