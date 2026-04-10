@@ -55,29 +55,78 @@ allowed-tools:
 ## Step 1: Pre-check
 
 Run verify.sh as sanity check (V1-V3 baselines only):
+
 ```bash
 bash .workflow/build/verify.sh {slug}
 ```
 
 If **FAIL**: This should not happen (build-implement should have left things passing). Investigate, fix, and re-run. If stuck after 2 attempts, escalate via gate protocol:
+
 - Write `.workflow/build/{slug}/gate-pending.md` with: what failed, error output, what you tried
 - Footer: `<!-- GATE_QUESTION: verify.sh failed 2x. How should I proceed? -->` `<!-- GATE_OPTIONS: Retry with guidance | Skip pre-check | Abort build -->` `<!-- GATE_STEP: 1 -->`
 - Return `{slug}: GATE`
 
 ## Step 2: Quality Agents
 
-Read `.workflow/build/{slug}/implementation-notes.md` if it exists. Run sequentially: `Task(code-simplifier)` then `Task(code-reviewer)`. Pass to each agent: "Focus review on these files and concerns: {Hotspots + Concerns from notes}"
+Read `.workflow/build/{slug}/implementation-notes.md` if it exists.
 
-If code-reviewer returns `STATUS: FAIL`: fix the identified issues, then re-run all checks:
+### 2a. Code Simplifier
+
+`Task(code-simplifier)` — Pass implementation-notes.md context: "Focus review on these files and concerns: {Hotspots + Concerns from notes}"
+
+### 2b. Performance Reviewer
+
+`Task(performance-reviewer)` — "Review performance dos arquivos modificados: {git diff --stat summary}"
+
+If `CRITICAL_PERF: true`: re-invocar performance-reviewer com "Fix os issues CRITICAL. AUTO-FIX independente de confidence." Se persistir após 2 tentativas, escalar via gate protocol.
+
+### 2c. Code Reviewer (ISOLADO — Builder-Critic Separation)
+
+**Information isolation:** NÃO passar implementation-notes.md ao reviewer. O reviewer deve avaliar o código sem viés do builder.
+
+Computar scope flags:
+
+```bash
+CHANGED=$(git diff origin/main...HEAD --name-only)
+SCOPE_FLAGS=""
+echo "$CHANGED" | grep -iE 'auth|jwt|session|middleware|login|permission' && SCOPE_FLAGS="$SCOPE_FLAGS SCOPE_AUTH"
+echo "$CHANGED" | grep -iE 'routes/|api/|controllers/|handlers/' && SCOPE_FLAGS="$SCOPE_FLAGS SCOPE_API"
+echo "$CHANGED" | grep -iE 'migration|schema|\.sql|prisma' && SCOPE_FLAGS="$SCOPE_FLAGS SCOPE_MIGRATIONS"
+```
+
+`Task(code-reviewer)` — "SCOPE FLAGS: {flags}. Review o diff contra as regras do projeto. Diff summary: {git diff --stat}."
+
+### 2d. Red Team
+
+`Task(red-team)` — "Code reviewer findings: {output do code-reviewer da fase 2c}. Review adversarial do diff."
+
+### 2e. Test Auditor (Coverage + Quality)
+
+**Information isolation:** NÃO passar implementation-notes.md ao auditor. O auditor deve avaliar os testes sem viés do builder.
+
+`Task(test-auditor)` — "Audit test coverage and quality for changed files. Red-team test stubs: {red-team test stubs output da fase 2d}."
+
+### 2f. Test Fixer (Verificação + Audit)
+
+`Task(test-fixer)` — "Rodar npm test após review agents. Corrigir testes que falharem. Criar testes faltantes para funções novas. Integrar regression test stubs sugeridos pelo red-team: {red-team test stubs output da fase 2d}. Test audit findings: {COMPLETE output do test-auditor da fase 2e}."
+
+### Handling Failures
+
+If code-reviewer or red-team returns `STATUS: FAIL`: fix the identified issues, then re-run all checks:
+
 ```bash
 npm test -- --run
 npx tsc --noEmit
 npm run build
 ```
-Re-invoke code-reviewer. If same issues persist after 2 fixes, escalate via gate protocol:
-- Write `.workflow/build/{slug}/gate-pending.md` with: code-reviewer concerns, what you tried to fix, remaining issues
-- Footer: `<!-- GATE_QUESTION: Code reviewer issues persist after 2 fix attempts. How should I proceed? -->` `<!-- GATE_OPTIONS: Fix with guidance | Accept remaining issues | Abort build -->` `<!-- GATE_STEP: 2 -->`
+
+Re-invoke the failing agent. If same issues persist after 2 fixes, escalate via gate protocol:
+
+- Write `.workflow/build/{slug}/gate-pending.md` with: agent concerns, what you tried to fix, remaining issues
+- Footer: `<!-- GATE_QUESTION: Review issues persist after 2 fix attempts. How should I proceed? -->` `<!-- GATE_OPTIONS: Fix with guidance | Accept remaining issues | Abort build -->` `<!-- GATE_STEP: 2 -->`
 - Return `{slug}: GATE`
+
+**test-auditor BLOCKING:** If test-auditor returns `BLOCKING: true` (critical path with zero tests), test-fixer (2f) addresses it. After test-fixer completes, if `CRITICAL_GAPS` from the auditor were not resolved (test-fixer returns `STATUS: FAIL`), escalate via gate protocol.
 
 ## Step 3: Commit
 
@@ -90,22 +139,26 @@ Commit all changes (conventional commits style).
 ### 4a. Deploy via certify.sh
 
 Run the certify script for deploy and health check:
+
 ```bash
 bash .workflow/build/certify.sh {slug}
 ```
 
 This script internally:
+
 1. Re-runs verify.sh locally (V1-V3 pre-check)
 2. Deploys backend (+ frontend if applicable)
 3. Waits for startup + health check
 4. **Creates the `certified` marker** — proof that deploy succeeded
 
 If deploy is not needed (no terraform/deploy.sh), use `--skip-deploy`:
+
 ```bash
 bash .workflow/build/certify.sh {slug} --skip-deploy
 ```
 
 If certify.sh **FAIL**: read the error output, fix the issue, re-commit if needed, re-run certify.sh. If the same approach fails twice, escalate via gate protocol:
+
 - Write `.workflow/build/{slug}/gate-pending.md` with: deploy error, what you tried
 - Footer: `<!-- GATE_QUESTION: Deploy failed twice. How should I proceed? -->` `<!-- GATE_OPTIONS: Fix with guidance | Skip deploy | Abort build -->` `<!-- GATE_STEP: 4 -->`
 - Return `{slug}: GATE`
@@ -113,11 +166,13 @@ If certify.sh **FAIL**: read the error output, fix the issue, re-commit if neede
 ### 4b. Production V4+ verification
 
 **Production Auth Discovery (in order, stop at first match):**
+
 1. **Project CLAUDE.md:** Read the project's CLAUDE.md. Look for `## Deploy` section — it contains deploy commands, production URL, auth method, and log querying instructions.
 2. **Memory:** Search `mcp__memory__search_nodes({ query: "production-testing" })` for supplementary auth context.
 3. **If neither found:** Skip production V4+ verification. Write to implementation-notes.md: "Production verification skipped — no deploy config found. Add a `## Deploy` section to project CLAUDE.md." Create v4-passed marker and proceed to Step 5.
 
 After certify.sh succeeds (the `certified` marker now exists):
+
 1. Delete the implement-phase v4-passed marker to ensure fresh production verification:
    ```bash
    rm -f ".workflow/build/{slug}/v4-passed"
@@ -130,12 +185,14 @@ After certify.sh succeeds (the `certified` marker now exists):
 ### 4c. Final gate
 
 After all V4+ pass, create the V4 marker and run the final gate:
+
 ```bash
 date -u '+%Y-%m-%dT%H:%M:%SZ' > ".workflow/build/{slug}/v4-passed"
 bash .workflow/build/verify.sh {slug} --full
 ```
 
 **`verify.sh --full` requires BOTH markers:**
+
 - `certified` — created by certify.sh (bash), proves deploy ran
 - `v4-passed` — created by you after V4+ verification
 

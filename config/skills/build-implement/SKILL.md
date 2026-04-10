@@ -42,12 +42,14 @@ You receive `{slug}` from `$ARGUMENTS`.
 ## Build
 
 If `.workflow/build/verify.sh` does not exist:
-  Read `${CLAUDE_SKILL_DIR}/../build-verify/verify-template.md` and generate verify.sh with V1-V3 baselines only.
+Read `${CLAUDE_SKILL_DIR}/../build-verify/verify-template.md` and generate verify.sh with V1-V3 baselines only.
 
 Freedom in HOW. Hard constraints: spec acceptance criteria, CLAUDE.md conventions, verify.sh passes.
 Run `bash .workflow/build/verify.sh {slug}` frequently as feedback loop. If the same approach fails twice, reconsider via Sequential Thinking.
 
 **verify.sh checks V1-V3 only:** unit tests, TypeScript, build.
+
+**After V1-V3 pass, before V4+:** verify all new exported functions have tests. If spec includes `## Coverage Baseline`, ensure MISSING entries are resolved.
 
 ## V4+ Verification (enforced by Stop hook)
 

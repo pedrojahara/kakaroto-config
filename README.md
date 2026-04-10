@@ -57,12 +57,15 @@ The installer will detect the existing `.claude/` folder and ask if you want to 
 │   ├── build-session-recovery.sh # Detects and resumes stalled workflows
 │   ├── build-implement-stop.sh   # Enforces verify.sh for agents
 │   └── ask-user-empty-guard.sh   # Rejects empty AskUserQuestion responses
-└── agents/                # 8 specialized agents
+└── agents/                # 11 specialized agents
     ├── build-implementer.md
     ├── resolve-fixer.md
+    ├── test-auditor.md
     ├── test-fixer.md
     ├── code-reviewer.md
     ├── code-simplifier.md
+    ├── red-team.md
+    ├── performance-reviewer.md
     ├── functional-validator.md
     ├── terraform-validator.md
     └── memory-sync.md
@@ -70,12 +73,12 @@ The installer will detect the existing `.claude/` folder and ask if you want to 
 
 ## Skills & Commands
 
-| Name | Type | Trigger | Description |
-|------|------|---------|-------------|
-| `/deliberate` | Skill | Manual | Adversarial solution designer: challenges framing, simulates scenarios as temporal narratives |
-| `/build` | Skill | "adicionar", "implementar", "criar" | Full feature workflow: understand -> verify -> implement -> certify. Accepts plan files (.md paths) |
-| `/resolve` | Skill | "bug", "erro", "problema" | Bug resolution: investigate -> verify -> fix -> certify |
-| `/gate` | Command | Manual | Run quality agents before PR |
+| Name          | Type    | Trigger                             | Description                                                                                         |
+| ------------- | ------- | ----------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `/deliberate` | Skill   | Manual                              | Adversarial solution designer: challenges framing, simulates scenarios as temporal narratives       |
+| `/build`      | Skill   | "adicionar", "implementar", "criar" | Full feature workflow: understand -> verify -> implement -> certify. Accepts plan files (.md paths) |
+| `/resolve`    | Skill   | "bug", "erro", "problema"           | Bug resolution: investigate -> verify -> fix -> certify                                             |
+| `/gate`       | Command | Manual                              | Run quality agents before PR                                                                        |
 
 ### Workflow Chain
 
@@ -91,27 +94,30 @@ The installer will detect the existing `.claude/` folder and ask if you want to 
 
 ## Agents (Subagents)
 
-| Agent | Model | Blocking | Purpose |
-|-------|-------|----------|---------|
-| `build-implementer` | opus | yes | Autonomous implementation from spec, codes until tests pass |
-| `resolve-fixer` | opus | yes | Autonomous bug fix, codes until QA flows pass |
-| `code-reviewer` | opus | yes | Security, types, bugs |
-| `test-fixer` | opus | yes | Runs tests, fixes failures, creates missing tests |
-| `code-simplifier` | opus | no | Clarity, DRY, patterns |
-| `functional-validator` | opus | yes | Validates UI with Playwright (auto-triggered on .tsx/.css changes) |
-| `terraform-validator` | opus | yes | Validates env vars and Terraform consistency |
-| `memory-sync` | opus | no | Syncs knowledge to MCP Memory |
+| Agent                  | Model | Blocking | Purpose                                                                                       |
+| ---------------------- | ----- | -------- | --------------------------------------------------------------------------------------------- |
+| `build-implementer`    | opus  | yes      | Autonomous implementation from spec, codes until tests pass                                   |
+| `resolve-fixer`        | opus  | yes      | Autonomous bug fix with WTF-likelihood heuristic, codes until QA flows pass                   |
+| `code-reviewer`        | opus  | yes      | Security, types, bugs (confidence calibration + scope-triggered + noise filter)               |
+| `red-team`             | opus  | yes      | Adversarial post-review: trust boundaries, silent failures, race conditions                   |
+| `performance-reviewer` | opus  | no\*     | Performance: N+1 queries, unbounded loads, blocking async (\*CRITICAL_PERF overrides)         |
+| `test-auditor`         | opus  | yes\*    | Read-only test coverage auditor, quality scoring (★★★/★★/★) (\*critical path with zero tests) |
+| `test-fixer`           | opus  | yes      | Runs tests, fixes failures, creates missing tests (consumes test-auditor findings)            |
+| `code-simplifier`      | opus  | no       | Clarity, DRY, patterns                                                                        |
+| `functional-validator` | opus  | yes      | Validates UI with Playwright (auto-triggered on .tsx/.css changes)                            |
+| `terraform-validator`  | opus  | yes      | Validates env vars and Terraform consistency                                                  |
+| `memory-sync`          | opus  | no       | Syncs knowledge to MCP Memory                                                                 |
 
 ## Philosophy
 
 The configuration enforces autonomous development:
 
-| Principle | Meaning |
-|-----------|---------|
-| **FAZER, nao perguntar** | Agents fix issues automatically, don't ask for confirmation |
-| **BUSCAR, nao pedir contexto** | Use MCP Memory and codebase exploration, don't ask user for context |
-| **Codigo sem teste = PR rejeitado** | Tests are mandatory (blocking) |
-| **Erros: corrigir e continuar** | Fix errors automatically, don't stop workflow |
+| Principle                           | Meaning                                                             |
+| ----------------------------------- | ------------------------------------------------------------------- |
+| **FAZER, nao perguntar**            | Agents fix issues automatically, don't ask for confirmation         |
+| **BUSCAR, nao pedir contexto**      | Use MCP Memory and codebase exploration, don't ask user for context |
+| **Codigo sem teste = PR rejeitado** | Tests are mandatory (blocking)                                      |
+| **Erros: corrigir e continuar**     | Fix errors automatically, don't stop workflow                       |
 
 ## After Installation
 
@@ -123,15 +129,18 @@ Create a `CLAUDE.md` in your project root with project-specific info:
 # Project Name
 
 ## Commands
+
 - `npm run dev` - Start dev server
 - `npm run build` - Build
 - `npm run test` - Run tests
 
 ## Structure
+
 - `src/` - Source code
 - `tests/` - Tests
 
 ## MCP Memory Namespace
+
 Prefix: `myproject:`
 ```
 
@@ -163,9 +172,9 @@ User: "adiciona filtro de data na listagem"
 Claude automatically triggers /build
          |
 build-understand -> Aligns on WHAT to build (user approval gate)
-build-verify     -> Designs QA-style human-action test scripts (user approval gate)
-build-implement  -> Autonomous implementation until verify.sh passes
-certify          -> Quality agents + deploy + production verification
+build-verify     -> Coverage baseline + QA test script design (user approval gate)
+build-implement  -> Autonomous implementation + test coverage check until verify.sh passes
+certify          -> Quality agents (incl. test-auditor) + deploy + production verification
          |
 Done
 ```
@@ -179,8 +188,8 @@ Claude automatically triggers /resolve
          |
 resolve-investigate -> Diagnoses root cause + QA reproduction flows
 resolve-verify      -> User reviews diagnosis + approves QA flows
-resolve-fix         -> Autonomous fix + local QA verification
-resolve-certify     -> Quality agents + deploy + production QA
+resolve-fix         -> Autonomous fix + regression test + local QA verification
+resolve-certify     -> Quality agents (incl. test-auditor) + deploy + production QA
          |
 Done (trivial bugs skip directly from investigate)
 ```
@@ -193,14 +202,17 @@ The certify skills automatically discover deploy and auth configuration from you
 ## Deploy
 
 ### Commands
+
 - Backend: `bash scripts/deploy.sh`
 - Verify: `bash scripts/verify.sh`
 
 ### Production Auth
+
 - API: `X-API-Key` header with API_KEY from .env
 - Browser: use `e2eLogin()` helper for browser tests
 
 ### Production Logs
+
 - `bash scripts/logs.sh`
 ```
 
@@ -225,23 +237,25 @@ npm run release
 ```
 
 This command will:
+
 1. Sync files from `~/.claude/` to `config/` (excluding personal files like `audit-command/`)
 2. Bump the patch version automatically
 3. Create a git commit and push
 4. Publish to npm
 
 **Files synced:**
+
 - `CLAUDE.md`, `ARCHITECTURE.md`
 - `skills/` (build, resolve, deliberate workflows)
 - `commands/` (gate)
-- `agents/` (all 8 subagents)
+- `agents/` (all 11 subagents)
 - `hooks/` (6 lifecycle hooks)
 - `templates/` (if present)
 
 **Files excluded:**
-- `audit-command/` (personal)
-- `build-plan/`, `think/` (personal)
+
 - Session data (`plans/`, `specs/`, `interviews/`, etc.)
+- Personal files not present in source are simply not synced
 
 ## License
 

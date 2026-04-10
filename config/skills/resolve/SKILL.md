@@ -44,9 +44,9 @@ If `$ARGUMENTS` is too vague to start, infer from recent git log, error logs, or
 2. **RECOVERY** -- Read `.workflow/resolve/{slug}/diagnosis.md` Status:
    - `VERIFIED_PROD` -> report summary, exit
    - `FAILED` -> report failure, exit
-   - `CERTIFYING` -> jump to step 7
-   - `FIXING` -> jump to step 6
-   - `VERIFIED` -> jump to step 5
+   - `CERTIFYING` -> jump to step 8
+   - `FIXING` -> jump to step 7
+   - `VERIFIED` -> jump to step 6
    - `DIAGNOSED` -> jump to step 4
    - `INVESTIGATING` -> jump to step 3
    - Check for `Trivial Fix Applied: YES` -> commit, cleanup, report, exit
@@ -58,25 +58,25 @@ If `$ARGUMENTS` is too vague to start, infer from recent git log, error logs, or
    - Otherwise -> continue to step 4
 
 4. Read diagnosis Severity and Status:
-   - If STANDARD or COMPLEX -> continue to step 4.5 (verify)
+   - If STANDARD or COMPLEX -> continue to step 5 (verify)
    - (TRIVIAL already handled in step 3)
 
-4.5. Skill("resolve-verify", args: "{slug}")
-     Read `.workflow/resolve/{slug}/diagnosis.md` Status:
-     - `VERIFIED` → proceed to step 5
-     - Otherwise → re-invoke (max 1). If stuck → AskUserQuestion to escalate.
+5. Skill("resolve-verify", args: "{slug}")
+   Read `.workflow/resolve/{slug}/diagnosis.md` Status:
+   - `VERIFIED` → proceed to step 6
+   - Otherwise → re-invoke (max 1). If stuck → AskUserQuestion to escalate.
 
-5. Edit Status -> `FIXING`
-   Continue to step 6
+6. Edit Status -> `FIXING`
+   Continue to step 7
 
-6. Skill("resolve-fix", args: "{slug}")
+7. Skill("resolve-fix", args: "{slug}")
    Read diagnosis Status after return:
-   - If `CERTIFYING` -> commit all changes with `fix: {summary from diagnosis}`, then continue to step 7
+   - If `CERTIFYING` -> commit all changes with `fix: {summary from diagnosis}`, then continue to step 8
    - If `FIXING` (turn budget exhaustion) -> re-invoke `Skill("resolve-fix", args: "{slug}")` (max 2 total)
    - If `INVESTIGATING` (circuit breaker) -> re-invoke `Skill("resolve-investigate", args: "{slug} RE-INVESTIGATE: see fix-notes.md")` (max 1). After re-investigation, go to step 4.
    - If still stuck after retries -> Status -> `FAILED`, report, exit
 
-7. result = Skill("resolve-certify", args: "{slug}")
+8. result = Skill("resolve-certify", args: "{slug}")
    If result contains "GATE" → handle per Certify Escalation below, then retry
    Read `.workflow/resolve/{slug}/diagnosis.md` Status:
    - `VERIFIED_PROD` → cleanup `.workflow/resolve/{slug}/`, report summary
@@ -89,6 +89,7 @@ resolve-certify runs forked and uses gate files ONLY when stuck (deploy fails 2x
 verification issues persist). This is rare — most resolves never trigger it.
 
 If Skill("resolve-certify") returns containing "GATE":
+
 1. Read `.workflow/resolve/{slug}/gate-pending.md`
 2. Output the body (above HTML comments) as text to the user
 3. Parse `GATE_QUESTION` and `GATE_OPTIONS` from the HTML comment footer

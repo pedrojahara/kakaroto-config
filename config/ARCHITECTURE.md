@@ -26,8 +26,9 @@
 │   ├── build-session-recovery.sh (SessionStart: detects stalled workflows)
 │   ├── build-implement-stop.sh   (Stop: enforces verify.sh --full for agents)
 │   └── ask-user-empty-guard.sh   (PostToolUse AskUserQuestion: rejects empty)
-├── agents/             (invocados via Task tool, 8 total)
-│   ├── code-reviewer, test-fixer, code-simplifier
+├── agents/             (invocados via Task tool, 11 total)
+│   ├── code-reviewer, test-auditor, test-fixer, code-simplifier
+│   ├── red-team, performance-reviewer
 │   ├── functional-validator, terraform-validator
 │   └── build-implementer, resolve-fixer, memory-sync
 └── settings.json       (hooks config, permissions)
@@ -41,12 +42,12 @@ Projetos adicionam `projeto/.claude/commands/` para skills locais (ex: `/deploy`
 
 ### /build (Feature Development)
 
-| Fase | Arquivo | Acao |
-|------|---------|------|
-| Understand | `build-understand/SKILL.md` | Product surface, interview, understand requirements |
-| Verify Design | `build-verify/SKILL.md` | Design QA-style V4+ verification scripts |
-| Implement | `build-implement/SKILL.md` | Anti-anchoring, exemplar study, `build-implementer` agent |
-| Certify | `build-certify/SKILL.md` | Quality agents -> deploy -> prod V4+ verification |
+| Fase          | Arquivo                     | Acao                                                                           |
+| ------------- | --------------------------- | ------------------------------------------------------------------------------ |
+| Understand    | `build-understand/SKILL.md` | Product surface, interview, understand requirements                            |
+| Verify Design | `build-verify/SKILL.md`     | Coverage baseline + design QA-style V4+ verification scripts                   |
+| Implement     | `build-implement/SKILL.md`  | Anti-anchoring, exemplar study, test coverage check, `build-implementer` agent |
+| Certify       | `build-certify/SKILL.md`    | Quality agents -> deploy -> prod V4+ verification                              |
 
 Lifecycle: `DRAFTING -> UNDERSTOOD -> VERIFIED -> BUILDING -> CERTIFYING -> DONE`
 
@@ -57,37 +58,40 @@ Routing: CLAUDE.md detecta trigger "criar/adicionar/implementar" -> `/build`
 
 ### /resolve (Bug Resolution)
 
-| Fase | Arquivo | Acao |
-|------|---------|------|
-| Investigate | `resolve-investigate/SKILL.md` | ST hipoteses, prod logs, QA reproduction flows |
-| Verify | `resolve-verify/SKILL.md` | User reviews diagnosis + QA flows, generates verify.sh |
-| Fix | `resolve-fix/SKILL.md` | Fix minimo + local QA verification via `resolve-fixer` agent |
-| Certify | `resolve-certify/SKILL.md` | Quality agents -> deploy -> prod QA verification |
+| Fase        | Arquivo                        | Acao                                                                           |
+| ----------- | ------------------------------ | ------------------------------------------------------------------------------ |
+| Investigate | `resolve-investigate/SKILL.md` | ST hipoteses, prod logs, QA reproduction flows                                 |
+| Verify      | `resolve-verify/SKILL.md`      | User reviews diagnosis + QA flows, generates verify.sh                         |
+| Fix         | `resolve-fix/SKILL.md`         | Fix minimo + regression test + local QA verification via `resolve-fixer` agent |
+| Certify     | `resolve-certify/SKILL.md`     | Quality agents -> deploy -> prod QA verification                               |
 
 Pipeline: `INVESTIGATING -> DIAGNOSED -> VERIFIED -> FIXING -> CERTIFYING -> VERIFIED_PROD`
 Trivial escape hatch: bugs >95% confidence fix+verify in Phase 1 (investigate), skips all remaining phases.
-Circuit breaker: Attempt 4 in fix -> re-investigate (max 1 cycle).
+Circuit breaker: Attempt 4 OR WTF-likelihood >= 30% in fix -> re-investigate (max 1 cycle).
 
 Routing: CLAUDE.md detecta trigger "bug/erro/problema" -> `/resolve`
 
 ### /gate (Quality Gate)
 
-Ordem: `test-fixer (baseline)` -> `code-simplifier` -> `test-fixer (verificacao)` -> `code-reviewer` -> `functional-validator (se UI)` -> `terraform-validator (se env)`
+Ordem: `test-fixer (baseline)` -> `code-simplifier` -> `performance-reviewer` -> `code-reviewer (scope flags)` -> `red-team` -> `test-auditor (coverage + quality)` -> `test-fixer (verificacao + audit)` -> `functional-validator (se UI)` -> `terraform-validator (se env)`
 
 ---
 
 ## Agent Registry
 
-| Agent | Modelo | Blocking | Proposito |
-|-------|--------|----------|-----------|
-| code-reviewer | opus | BLOCKING | Seguranca, tipagem, bugs |
-| test-fixer | opus | BLOCKING | Rodar/corrigir/criar testes |
-| code-simplifier | opus | non-blocking | Clareza, DRY, padroes |
-| functional-validator | opus | BLOCKING | Playwright smoke tests em UI |
-| terraform-validator | opus | BLOCKING | Consistencia env vars / .tf |
-| build-implementer | opus | BLOCKING | Implementacao autonoma ate testes passarem |
-| resolve-fixer | opus | BLOCKING | Fix autonomo de bugs ate QA flows passarem |
-| memory-sync | opus | non-blocking | Sincroniza MCP Memory pos-workflow |
+| Agent                | Modelo | Blocking       | Proposito                                                                          |
+| -------------------- | ------ | -------------- | ---------------------------------------------------------------------------------- |
+| code-reviewer        | opus   | BLOCKING       | Seguranca, tipagem, bugs (confidence calibration + scope-triggered + noise filter) |
+| red-team             | opus   | BLOCKING       | Adversarial: trust boundaries, silent failures, race conditions                    |
+| performance-reviewer | opus   | non-blocking\* | N+1 queries, unbounded loads, blocking async (\*CRITICAL_PERF overrides)           |
+| test-auditor         | opus   | BLOCKING\*     | Coverage gaps, quality scoring (★★★/★★/★). Read-only. (\*critical path sem teste)  |
+| test-fixer           | opus   | BLOCKING       | Rodar/corrigir/criar testes                                                        |
+| code-simplifier      | opus   | non-blocking   | Clareza, DRY, padroes                                                              |
+| functional-validator | opus   | BLOCKING       | Playwright smoke tests em UI                                                       |
+| terraform-validator  | opus   | BLOCKING       | Consistencia env vars / .tf                                                        |
+| build-implementer    | opus   | BLOCKING       | Implementacao autonoma ate testes passarem                                         |
+| resolve-fixer        | opus   | BLOCKING       | Fix autonomo de bugs ate QA flows passarem                                         |
+| memory-sync          | opus   | non-blocking   | Sincroniza MCP Memory pos-workflow                                                 |
 
 ---
 
@@ -106,29 +110,40 @@ BLOCKING: true | false
 
 Regras: `STATUS=FAIL + BLOCKING=true` -> workflow PARA. `BLOCKING=false` -> continua com warning.
 
+Campos extras por agent:
+
+- `performance-reviewer` adiciona `CRITICAL_PERF: true | false`. Quando `true`, o orquestrador trata como blocking.
+- `test-auditor` adiciona `QUALITY_SCORES: <★★★>/<★★>/<★>/<none>` e `CRITICAL_GAPS: <n>`. Quando critical path tem zero testes, `BLOCKING: true`.
+
 ---
 
 ## Triggers Automaticos
 
-| Condicao | Acao |
-|----------|------|
-| Mudanca em `*.tsx`, `*.css` | `functional-validator` invocado |
-| Mudanca em `.env` ou `terraform/` | `terraform-validator` invocado |
-| Codigo novo sem teste | `test-fixer` cria teste |
-| Fim de workflow | `memory-sync` atualiza Memory |
+| Condicao                               | Acao                                                         |
+| -------------------------------------- | ------------------------------------------------------------ |
+| Mudanca em `*.tsx`, `*.css`            | `functional-validator` invocado                              |
+| Mudanca em `.env` ou `terraform/`      | `terraform-validator` invocado                               |
+| Mudanca em auth/jwt/session/middleware | SCOPE_AUTH -> deep auth review no `code-reviewer`            |
+| Mudanca em routes/api/controllers      | SCOPE_API -> deep API review no `code-reviewer`              |
+| Mudanca em migrations/schema           | SCOPE_MIGRATIONS -> deep migration review no `code-reviewer` |
+| Mudanca em codigo                      | `test-auditor` audita cobertura e qualidade                  |
+| Codigo novo sem teste                  | `test-fixer` cria teste                                      |
+| Fim de workflow                        | `memory-sync` atualiza Memory                                |
 
 ---
 
 ## Hooks Pipeline
 
-| Hook | Event | Funcao |
-|------|-------|--------|
-| `build-skill-register.sh` | PreToolUse (Skill) | Claims session ownership for build/resolve sub-skills |
-| `build-continuity-hook.sh` | PostToolUse (Skill) | Injects next Skill() call, prevents narration between phases |
-| `build-stop-guard.sh` | Stop | Blocks stop while workflow active; reads next-action.md |
-| `build-implement-stop.sh` | Stop (agent) | Enforces verify.sh --full for build-implementer agent |
-| `build-session-recovery.sh` | SessionStart | Detects stalled workflows (30min heartbeat), offers resume |
-| `ask-user-empty-guard.sh` | PostToolUse (AskUserQuestion) | Rejects empty/blank responses (accidental submissions) |
+| Hook                        | Event                         | Funcao                                                           |
+| --------------------------- | ----------------------------- | ---------------------------------------------------------------- |
+| `build-skill-register.sh`   | PreToolUse (Skill)            | Claims session ownership for build/resolve sub-skills            |
+| `build-continuity-hook.sh`  | PostToolUse (Skill)           | Injects next Skill() call, prevents narration between phases     |
+| `build-stop-guard.sh`       | Stop                          | Blocks stop while workflow active; reads next-action.md          |
+| `build-implement-stop.sh`   | Stop (agent)                  | Enforces verify.sh --full for build-implementer agent            |
+| `build-session-recovery.sh` | SessionStart                  | Detects stalled workflows (30min heartbeat), offers resume       |
+| `ask-user-empty-guard.sh`   | PostToolUse (AskUserQuestion) | Rejects empty/blank responses (accidental submissions)           |
+| `pre-commit-gate.sh`        | PreToolUse (Bash)             | Blocks git commit: prettier auto-fix + `any` guard + tsc + tests |
+| `stop-quality-check.sh`     | Stop                          | Blocks stop if uncommitted code changes have tsc/test failures   |
 
 ---
 
@@ -140,14 +155,17 @@ Certify skills discover deploy and auth config from the project's CLAUDE.md:
 ## Deploy
 
 ### Commands
+
 - Backend: `bash scripts/deploy.sh`
 - Verify: `bash scripts/verify.sh`
 
 ### Production Auth
+
 - API: `X-API-Key` header with API_KEY from .env
 - Browser: use `e2eLogin()` helper for browser tests
 
 ### Production Logs
+
 - `bash scripts/logs.sh`
 ```
 
@@ -169,7 +187,8 @@ Without `## Deploy`, certify runs quality agents + commit but skips deploy and p
 # /deploy, /ship, etc.
 
 # Agents (via Task tool)
-# code-reviewer, test-fixer, code-simplifier,
+# code-reviewer, red-team, performance-reviewer,
+# test-auditor, test-fixer, code-simplifier,
 # functional-validator, terraform-validator,
 # build-implementer, resolve-fixer, memory-sync
 ```

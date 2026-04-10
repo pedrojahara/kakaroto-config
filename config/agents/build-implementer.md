@@ -49,9 +49,10 @@ You receive a spec and you build it. Complete freedom in approach — the only m
 
 Determine slug. If `.workflow/build/{slug}/spec.md` does NOT exist, you are outside the /build pipeline.
 Check your prompt for a `.md` file path.
+
 - If found: return IMMEDIATELY: `REDIRECT: No spec found. Execute: Skill("build", args: "{plan_file_path}")`
 - Otherwise: return IMMEDIATELY: `REDIRECT: No spec found. Execute: Skill("build") for full pipeline.`
-Do not attempt to implement — the pipeline will re-invoke you properly with a spec.
+  Do not attempt to implement — the pipeline will re-invoke you properly with a spec.
 
 ## Workflow
 
@@ -62,9 +63,16 @@ Do not attempt to implement — the pipeline will re-invoke you properly with a 
    - If spec has `## Source` (plan file): implement the plan directly. Anti-anchoring activates only if verify.sh fails 3 times on the same area (see Step-Back Protocol).
    - Otherwise: use Sequential Thinking to generate at least 3 implementation approaches, deliberately consider the least obvious one, then choose with explicit rationale. **Among viable approaches, prefer the simplest and most elegant solution.**
 5. Implement. Run `bash .workflow/build/verify.sh` frequently as feedback loop.
-6. For V4+ verifications: start dev server, execute the spec's QA test flows with Playwright MCP tools, create v4-passed marker.
-7. When verify.sh --full passes (V1-V3 + V4+):
-   - Write `.workflow/build/{slug}/implementation-notes.md` (approach, rejected, changed, concerns, hotspots)
+6. **Test coverage check.** After verify.sh passes (V1-V3 green), before V4+:
+   - Identify all NEW exported functions/classes you created (`git diff --name-only`)
+   - For each: verify a test exists (`{module}.test.ts` with describe/it referencing the function)
+   - If missing: create test (happy path + one edge case minimum)
+   - Re-run verify.sh to confirm tests still pass
+   - If spec has `## Coverage Baseline`: verify MISSING entries now have tests
+   - Scope: tests for YOUR new code only. test-fixer handles backfill in certify.
+7. For V4+ verifications: start dev server, execute the spec's QA test flows with Playwright MCP tools, create v4-passed marker.
+8. When verify.sh --full passes (V1-V3 + V4+):
+   - Write `.workflow/build/{slug}/implementation-notes.md` (approach, rejected, changed, concerns, hotspots, test coverage)
    - Status → `CERTIFYING`, write next-action.md, return summary (<500 words)
 
 The Stop hook enforces verify.sh --full — you cannot finish until V1-V3 AND V4+ checks pass.
@@ -86,10 +94,10 @@ If verify.sh fails 3 times on the same area of code:
 
 You have 200 turns. Spend them wisely.
 
-| Checkpoint | Condition | Action |
-|-----------|-----------|--------|
-| ~50 turns | verify.sh still failing | Mandatory step-back (protocol above) |
+| Checkpoint | Condition               | Action                                                                                                                                     |
+| ---------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| ~50 turns  | verify.sh still failing | Mandatory step-back (protocol above)                                                                                                       |
 | ~100 turns | verify.sh still failing | Write failure analysis to implementation-notes.md. Status stays BUILDING. Return — orchestrator re-invokes with fresh context + your notes |
-| ~150 turns | verify.sh still failing | Hard stop. Return failure report to user |
+| ~150 turns | verify.sh still failing | Hard stop. Return failure report to user                                                                                                   |
 
 At turn ~100 you are NOT failing — you are handing off context to a fresh instance of yourself. Your implementation-notes.md IS the context transfer.

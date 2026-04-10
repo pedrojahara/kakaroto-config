@@ -54,6 +54,7 @@ You receive `{slug}` from `$ARGUMENTS`.
 ## Fix
 
 Make the **minimum change** that fixes the root cause. After each change:
+
 ```bash
 npm test -- --run
 npx tsc --noEmit
@@ -66,11 +67,13 @@ If the same approach fails twice, use Sequential Thinking to reconsider.
 After unit tests pass, execute ALL QA Reproduction Flows from the diagnosis:
 
 **Auth Discovery:** Read project CLAUDE.md `## Deploy` section for auth method and prod URL. Also search `mcp__memory__search_nodes({ query: "production-testing" })`.
+
 - **Local browser:** Playwright MCP against `http://localhost:3001` (no auth needed in dev)
 - **API testing:** Use the discovered auth method from CLAUDE.md
 - **Production-only bugs:** If the bug only manifests in production, use discovered auth against the production URL. Check logs using the log command from CLAUDE.md `## Deploy` section.
 
 Steps:
+
 1. For browser-testable flows: ensure dev server is running, use Playwright MCP against localhost
 2. For API-testable flows: use curl with appropriate auth
 3. For each R1, R2...: follow human-steps exactly
@@ -79,11 +82,12 @@ Steps:
 
 ## Circuit Breaker
 
-Attempt 4 with no progress -> Update diagnosis Status -> `INVESTIGATING`. Write findings to fix-notes.md. Return `{slug}: RE-INVESTIGATE`. The orchestrator will re-invoke resolve-investigate with new context.
+Attempt 4 with no progress OR WTF-likelihood >= 30% -> Update diagnosis Status -> `INVESTIGATING`. Write findings to fix-notes.md. Return `{slug}: RE-INVESTIGATE`. The orchestrator will re-invoke resolve-investigate with new context.
 
 ## Notes
 
 Before signaling CERTIFYING, write `.workflow/resolve/{slug}/fix-notes.md`:
+
 - Approach chosen and why
 - Rejected approaches
 - Files changed with rationale
@@ -92,7 +96,8 @@ Before signaling CERTIFYING, write `.workflow/resolve/{slug}/fix-notes.md`:
 
 ## Done
 
-When `npm test -- --run` passes AND `npx tsc --noEmit` passes AND all QA flows pass via Playwright MCP:
+When `npm test -- --run` passes AND `npx tsc --noEmit` passes AND regression test exists for the fix AND all QA flows pass via Playwright MCP:
+
 - Status -> `CERTIFYING`
 - fix-notes.md written
 - Do NOT commit -- the orchestrator handles the commit after this skill returns
@@ -107,11 +112,13 @@ When `npm test -- --run` passes AND `npx tsc --noEmit` passes AND all QA flows p
 Before returning, write `.workflow/resolve/{slug}/next-action.md` -- a single line:
 
 If CERTIFYING:
+
 ```
 Skill("resolve-certify", args: "{slug}")
 ```
 
 If INVESTIGATING (circuit breaker):
+
 ```
 Skill("resolve-investigate", args: "{slug} RE-INVESTIGATE: see fix-notes.md")
 ```
