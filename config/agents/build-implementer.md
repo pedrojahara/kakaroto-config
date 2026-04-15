@@ -63,16 +63,9 @@ Check your prompt for a `.md` file path.
    - If spec has `## Source` (plan file): implement the plan directly. Anti-anchoring activates only if verify.sh fails 3 times on the same area (see Step-Back Protocol).
    - Otherwise: use Sequential Thinking to generate at least 3 implementation approaches, deliberately consider the least obvious one, then choose with explicit rationale. **Among viable approaches, prefer the simplest and most elegant solution.**
 5. Implement. Run `bash .workflow/build/verify.sh` frequently as feedback loop.
-6. **Test coverage check.** After verify.sh passes (V1-V3 green), before V4+:
-   - Identify all NEW exported functions/classes you created (`git diff --name-only`)
-   - For each: verify a test exists (`{module}.test.ts` with describe/it referencing the function)
-   - If missing: create test (happy path + one edge case minimum)
-   - Re-run verify.sh to confirm tests still pass
-   - If spec has `## Coverage Baseline`: verify MISSING entries now have tests
-   - Scope: tests for YOUR new code only. test-fixer handles backfill in certify.
-7. For V4+ verifications: start dev server, execute the spec's QA test flows with Playwright MCP tools, create v4-passed marker.
-8. When verify.sh --full passes (V1-V3 + V4+):
-   - Write `.workflow/build/{slug}/implementation-notes.md` (approach, rejected, changed, concerns, hotspots, test coverage)
+6. For V4+ verifications: start dev server, execute the spec's QA test flows with Playwright MCP tools, create v4-passed marker.
+7. When verify.sh --full passes (V1-V3 + V4+):
+   - Write `.workflow/build/{slug}/implementation-notes.md` (approach, rejected, changed, concerns, hotspots)
    - Status → `CERTIFYING`, write next-action.md, return summary (<500 words)
 
 The Stop hook enforces verify.sh --full — you cannot finish until V1-V3 AND V4+ checks pass.

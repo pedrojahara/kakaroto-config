@@ -34,7 +34,7 @@ allowed-tools:
 
 ## Boundaries
 
-- **Authority:** You may ONLY set Status to `DONE`. Never write UNDERSTOOD, VERIFIED, BUILDING, or any other status.
+- **Authority:** You may ONLY set Status to `DONE`. Never write UNDERSTOOD, BUILDING, or any other status.
 - **Prerequisite:** Status must be CERTIFYING and verify.sh must pass before proceeding.
 - **No user interaction:** You do NOT call AskUserQuestion. When stuck, use the gate protocol (write gate-pending.md, return GATE) and the orchestrator will handle user interaction.
 
@@ -68,51 +68,12 @@ If **FAIL**: This should not happen (build-implement should have left things pas
 
 ## Step 2: Quality Agents
 
-Read `.workflow/build/{slug}/implementation-notes.md` if it exists.
+Read `Complexity` from spec.
 
-### 2a. Code Simplifier
+- **TRIVIAL / STANDARD:** Skip quality agents. verify.sh (Step 1) is sufficient. Proceed to Step 3.
+- **COMPLEX:** Read `.workflow/build/{slug}/implementation-notes.md` if it exists. Run sequentially: `Task(code-simplifier)` then `Task(code-reviewer)`. Pass to each agent: "Focus review on these files and concerns: {Hotspots + Concerns from notes}"
 
-`Task(code-simplifier)` — Pass implementation-notes.md context: "Focus review on these files and concerns: {Hotspots + Concerns from notes}"
-
-### 2b. Performance Reviewer
-
-`Task(performance-reviewer)` — "Review performance dos arquivos modificados: {git diff --stat summary}"
-
-If `CRITICAL_PERF: true`: re-invocar performance-reviewer com "Fix os issues CRITICAL. AUTO-FIX independente de confidence." Se persistir após 2 tentativas, escalar via gate protocol.
-
-### 2c. Code Reviewer (ISOLADO — Builder-Critic Separation)
-
-**Information isolation:** NÃO passar implementation-notes.md ao reviewer. O reviewer deve avaliar o código sem viés do builder.
-
-Computar scope flags:
-
-```bash
-CHANGED=$(git diff origin/main...HEAD --name-only)
-SCOPE_FLAGS=""
-echo "$CHANGED" | grep -iE 'auth|jwt|session|middleware|login|permission' && SCOPE_FLAGS="$SCOPE_FLAGS SCOPE_AUTH"
-echo "$CHANGED" | grep -iE 'routes/|api/|controllers/|handlers/' && SCOPE_FLAGS="$SCOPE_FLAGS SCOPE_API"
-echo "$CHANGED" | grep -iE 'migration|schema|\.sql|prisma' && SCOPE_FLAGS="$SCOPE_FLAGS SCOPE_MIGRATIONS"
-```
-
-`Task(code-reviewer)` — "SCOPE FLAGS: {flags}. Review o diff contra as regras do projeto. Diff summary: {git diff --stat}."
-
-### 2d. Red Team
-
-`Task(red-team)` — "Code reviewer findings: {output do code-reviewer da fase 2c}. Review adversarial do diff."
-
-### 2e. Test Auditor (Coverage + Quality)
-
-**Information isolation:** NÃO passar implementation-notes.md ao auditor. O auditor deve avaliar os testes sem viés do builder.
-
-`Task(test-auditor)` — "Audit test coverage and quality for changed files. Red-team test stubs: {red-team test stubs output da fase 2d}."
-
-### 2f. Test Fixer (Verificação + Audit)
-
-`Task(test-fixer)` — "Rodar npm test após review agents. Corrigir testes que falharem. Criar testes faltantes para funções novas. Integrar regression test stubs sugeridos pelo red-team: {red-team test stubs output da fase 2d}. Test audit findings: {COMPLETE output do test-auditor da fase 2e}."
-
-### Handling Failures
-
-If code-reviewer or red-team returns `STATUS: FAIL`: fix the identified issues, then re-run all checks:
+If code-reviewer returns `STATUS: FAIL`: fix the identified issues, then re-run all checks:
 
 ```bash
 npm test -- --run
@@ -120,13 +81,23 @@ npx tsc --noEmit
 npm run build
 ```
 
-Re-invoke the failing agent. If same issues persist after 2 fixes, escalate via gate protocol:
+Re-invoke code-reviewer. If same issues persist after 2 fixes, escalate via gate protocol:
 
-- Write `.workflow/build/{slug}/gate-pending.md` with: agent concerns, what you tried to fix, remaining issues
-- Footer: `<!-- GATE_QUESTION: Review issues persist after 2 fix attempts. How should I proceed? -->` `<!-- GATE_OPTIONS: Fix with guidance | Accept remaining issues | Abort build -->` `<!-- GATE_STEP: 2 -->`
+- Write `.workflow/build/{slug}/gate-pending.md` with: code-reviewer concerns, what you tried to fix, remaining issues
+- Footer: `<!-- GATE_QUESTION: Code reviewer issues persist after 2 fix attempts. How should I proceed? -->` `<!-- GATE_OPTIONS: Fix with guidance | Accept remaining issues | Abort build -->` `<!-- GATE_STEP: 2 -->`
 - Return `{slug}: GATE`
 
-**test-auditor BLOCKING:** If test-auditor returns `BLOCKING: true` (critical path with zero tests), test-fixer (2f) addresses it. After test-fixer completes, if `CRITICAL_GAPS` from the auditor were not resolved (test-fixer returns `STATUS: FAIL`), escalate via gate protocol.
+## Step 2.5: Post-Quality Verification (Iron Law)
+
+**Iron Law: "Code changed since last verification → Test again. Confidence is not evidence."**
+
+If any quality agent modified code in Step 2, re-verify before committing:
+
+```bash
+bash .workflow/build/verify.sh {slug}
+```
+
+If **FAIL**: fix the regression introduced by quality agents, re-run. Must pass before proceeding to commit.
 
 ## Step 3: Commit
 
@@ -165,6 +136,8 @@ If certify.sh **FAIL**: read the error output, fix the issue, re-commit if neede
 
 ### 4b. Production V4+ verification
 
+**Skip if spec has NO `## Verification` section.** Create v4-passed marker and proceed to 4c.
+
 **Production Auth Discovery (in order, stop at first match):**
 
 1. **Project CLAUDE.md:** Read the project's CLAUDE.md. Look for `## Deploy` section — it contains deploy commands, production URL, auth method, and log querying instructions.
@@ -180,11 +153,18 @@ After certify.sh succeeds (the `certified` marker now exists):
 2. Read the spec's `## Verification` section
 3. For API-verifiable flows: use the discovered auth method against the production URL
 4. For UI-only flows: use discovered auth; write a standalone Playwright script if browser verification is needed
-5. Verify expected results
+5. Verify expected results — execute both **steps** and **checks**:
+   - After completing each V4+ flow's steps, run its checks (same DSL as build-implement):
+     - `console: no-errors` → `browser_console_messages()` → fail if any error-level entries
+     - `url: contains "X"` → `browser_evaluate({ script: "location.href.includes('X')" })` → fail if false
+     - `text: visible "X"` → `browser_evaluate({ script: "document.body.innerText.includes('X')" })` → fail if false
+     - `text: not-visible "X"` → `browser_evaluate({ script: "!document.body.innerText.includes('X')" })` → fail if false
+     - `state: no-loading` → `browser_evaluate({ script: "!document.querySelector('.spinner, .loading, [aria-busy=\"true\"]')" })` → fail if false
+   - If ANY check fails → the V4+ flow FAILS in production. Investigate, hotfix, re-deploy.
 
 ### 4c. Final gate
 
-After all V4+ pass, create the V4 marker and run the final gate:
+After all V4+ pass (or if skipped), create the V4 marker and run the final gate:
 
 ```bash
 date -u '+%Y-%m-%dT%H:%M:%SZ' > ".workflow/build/{slug}/v4-passed"

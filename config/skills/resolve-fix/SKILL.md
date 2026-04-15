@@ -46,10 +46,48 @@ You receive `{slug}` from `$ARGUMENTS`.
 
 ## Setup
 
-1. Read `.workflow/resolve/{slug}/diagnosis.md` -- this is your contract (WHAT is broken + HOW to verify)
-2. Read the project's `CLAUDE.md` -- constraints and conventions
-3. Search memory if relevant: `mcp__memory__search_nodes({ query: "relevant-pattern" })`
-4. Read the Root Cause, Suggested Fix, Hotspots, and QA Reproduction Flows sections
+1. **Gate continuation check:** if `.workflow/resolve/{slug}/gate-response.md` exists, read it, delete it, parse the `selected:` and `step:` fields. If `step: scope-lock`, resume the Scope Lock decision with the user's choice (proceed with Edit, widen scope, or abort).
+2. Read `.workflow/resolve/{slug}/diagnosis.md` -- this is your contract (WHAT is broken + HOW to verify)
+3. Read the project's `CLAUDE.md` -- constraints and conventions
+4. Search memory if relevant: `mcp__memory__search_nodes({ query: "relevant-pattern" })`
+5. Read the Root Cause, Suggested Fix, Hotspots, and QA Reproduction Flows sections
+
+## Scope Lock
+
+Before the first Edit, read `.workflow/resolve/{slug}/scope.txt` (written by resolve-investigate Phase A). Parse lines:
+
+- `allow-dir: {path}` — directory prefix
+- `allow-file: {path}` — exact file path
+- `allow-glob: {pattern}` — glob pattern
+- `#` or blank lines — ignored (comments)
+
+For each Edit target, check in order:
+
+1. Target path equals any `allow-file` → proceed
+2. Target path starts with any `allow-dir` → proceed
+3. Target path matches any `allow-glob` → proceed
+4. Target is a `Write` of a NEW file (not Edit of existing) → proceed (creation is exempt)
+5. Otherwise → **gate pattern**: write `.workflow/resolve/{slug}/gate-pending.md`:
+
+   ```markdown
+   Fix needs to edit `{path}`, which is outside the declared scope:
+
+   {list of allow-dir/allow-file/allow-glob entries}
+
+   <!-- GATE_QUESTION: Fix needs to edit {path}, outside declared scope. Allow? -->
+   <!-- GATE_OPTIONS: Allow once | Widen scope permanently | Abort -->
+   <!-- GATE_STEP: scope-lock -->
+   ```
+
+   Return `{slug}: GATE`. The orchestrator handles `AskUserQuestion` and re-invokes you with `gate-response.md`.
+
+On gate-response:
+
+- `Allow once` → proceed with the Edit, do not modify scope.txt
+- `Widen scope permanently` → append `allow-file: {path}` to scope.txt, proceed
+- `Abort` → update diagnosis Status to `INVESTIGATING`, write `fix-notes.md` with the rejected path, return `{slug}: RE-INVESTIGATE`
+
+If `scope.txt` does not exist (legacy diagnosis without scope lock): proceed without enforcement but log a warning comment in `fix-notes.md`.
 
 ## Fix
 
@@ -78,11 +116,17 @@ Steps:
 2. For API-testable flows: use curl with appropriate auth
 3. For each R1, R2...: follow human-steps exactly
 4. Verify expected-fixed state
-5. If any flow still shows the bug: fix is incomplete, iterate
+5. If the flow has `checks:`, execute them as deterministic assertions:
+   - `console: no-errors` → `browser_console_messages()` → fail if any error-level entries
+   - `url: contains "X"` → `browser_evaluate({ script: "location.href.includes('X')" })` → fail if false
+   - `text: visible "X"` → `browser_evaluate({ script: "document.body.innerText.includes('X')" })` → fail if false
+   - `text: not-visible "X"` → `browser_evaluate({ script: "!document.body.innerText.includes('X')" })` → fail if false
+   - `state: no-loading` → `browser_evaluate({ script: "!document.querySelector('.spinner, .loading, [aria-busy=\"true\"]')" })` → fail if false
+6. If any flow or check still shows the bug: fix is incomplete, iterate
 
 ## Circuit Breaker
 
-Attempt 4 with no progress OR WTF-likelihood >= 30% -> Update diagnosis Status -> `INVESTIGATING`. Write findings to fix-notes.md. Return `{slug}: RE-INVESTIGATE`. The orchestrator will re-invoke resolve-investigate with new context.
+Attempt 4 with no progress -> Update diagnosis Status -> `INVESTIGATING`. Write findings to fix-notes.md. Return `{slug}: RE-INVESTIGATE`. The orchestrator will re-invoke resolve-investigate with new context.
 
 ## Notes
 
@@ -96,16 +140,24 @@ Before signaling CERTIFYING, write `.workflow/resolve/{slug}/fix-notes.md`:
 
 ## Done
 
-When `npm test -- --run` passes AND `npx tsc --noEmit` passes AND regression test exists for the fix AND all QA flows pass via Playwright MCP:
+When `npm test -- --run` passes AND `npx tsc --noEmit` passes AND all QA flows pass via Playwright MCP:
 
 - Status -> `CERTIFYING`
 - fix-notes.md written
 - Do NOT commit -- the orchestrator handles the commit after this skill returns
 - Return ONLY: `{slug}: CERTIFYING`
 
+**Return values:**
+
+- `{slug}: CERTIFYING` — fix applied, local QA passed
+- `{slug}: RE-INVESTIGATE` — circuit breaker triggered, re-investigate needed
+- `{slug}: GATE` — scope lock hit, orchestrator handles via gate pattern
+
 **If the agent returns with Status still FIXING** (turn budget): read `.workflow/resolve/{slug}/fix-notes.md`, then re-invoke resolve-fix -- the fresh agent reads the notes as prior context.
 
 **If the agent returns with Status INVESTIGATING** (circuit breaker): orchestrator re-invokes resolve-investigate.
+
+**If the agent returns `{slug}: GATE`** (scope lock): orchestrator reads `gate-pending.md`, calls `AskUserQuestion`, writes `gate-response.md`, re-invokes resolve-fix. The fresh agent detects `gate-response.md` on startup and resumes where the scope lock was raised.
 
 ## Handoff
 
@@ -120,5 +172,5 @@ Skill("resolve-certify", args: "{slug}")
 If INVESTIGATING (circuit breaker):
 
 ```
-Skill("resolve-investigate", args: "{slug} RE-INVESTIGATE: see fix-notes.md")
+Skill("resolve-investigate", args: "{slug} PHASE_D: RE-INVESTIGATE from fix-notes.md")
 ```

@@ -25,19 +25,6 @@ You are a test automation specialist.
 
 Este agent e responsavel por CRIAR e CORRIGIR testes - nao apenas para "utility functions", mas para TODA funcionalidade nova.
 
-## Auditor Context (when provided)
-
-If the prompt contains test-auditor output (identified by "### Coverage Map"):
-
-1. **Parse audit report** — extract untested functions, upgrade recommendations, critical gaps, pending red-team stubs
-2. **Prioritize by audit findings:**
-   - First: Create tests for zero-coverage critical path files
-   - Second: Create tests for zero-coverage non-critical files
-   - Third: Upgrade ★ critical paths to ★★★
-   - Fourth: Upgrade ★★ critical paths to ★★★
-3. **Follow upgrade recommendations literally** — the auditor lists specific test cases needed. Use them as your creation guide.
-4. **Target quality:** New test files ≥ ★★, critical paths ≥ ★★★
-
 ## When Invoked
 
 ### Step 1: Identify Code Changes
@@ -388,8 +375,6 @@ Ao final do relatorio, SEMPRE incluir:
 STATUS: PASS | FAIL
 ISSUES_FOUND: <numero>
 ISSUES_FIXED: <numero>
-TESTS_CREATED: <numero>
-TESTS_UPGRADED: <numero>
 BLOCKING: true | false
 ---END_RESULT---
 ```

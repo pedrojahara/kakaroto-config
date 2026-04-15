@@ -50,22 +50,21 @@ The installer will detect the existing `.claude/` folder and ask if you want to 
 │   └── deliberate/            # /deliberate - adversarial solution design
 ├── commands/              # Commands (invoked via /command)
 │   └── gate.md            # /gate - quality gate before PR
-├── hooks/                 # Workflow lifecycle hooks
+├── hooks/                 # Lifecycle hooks (8 total)
 │   ├── build-stop-guard.sh       # Prevents stop during active workflow
 │   ├── build-continuity-hook.sh  # Injects next action between phases
 │   ├── build-skill-register.sh   # Claims session ownership
 │   ├── build-session-recovery.sh # Detects and resumes stalled workflows
 │   ├── build-implement-stop.sh   # Enforces verify.sh for agents
-│   └── ask-user-empty-guard.sh   # Rejects empty AskUserQuestion responses
-└── agents/                # 11 specialized agents
+│   ├── ask-user-empty-guard.sh   # Rejects empty AskUserQuestion responses
+│   ├── pre-commit-gate.sh        # Quality checks before git commit
+│   └── stop-quality-check.sh     # Quality checks before session stop
+└── agents/                # 8 specialized agents
     ├── build-implementer.md
     ├── resolve-fixer.md
-    ├── test-auditor.md
     ├── test-fixer.md
     ├── code-reviewer.md
     ├── code-simplifier.md
-    ├── red-team.md
-    ├── performance-reviewer.md
     ├── functional-validator.md
     ├── terraform-validator.md
     └── memory-sync.md
@@ -94,19 +93,29 @@ The installer will detect the existing `.claude/` folder and ask if you want to 
 
 ## Agents (Subagents)
 
-| Agent                  | Model | Blocking | Purpose                                                                                       |
-| ---------------------- | ----- | -------- | --------------------------------------------------------------------------------------------- |
-| `build-implementer`    | opus  | yes      | Autonomous implementation from spec, codes until tests pass                                   |
-| `resolve-fixer`        | opus  | yes      | Autonomous bug fix with WTF-likelihood heuristic, codes until QA flows pass                   |
-| `code-reviewer`        | opus  | yes      | Security, types, bugs (confidence calibration + scope-triggered + noise filter)               |
-| `red-team`             | opus  | yes      | Adversarial post-review: trust boundaries, silent failures, race conditions                   |
-| `performance-reviewer` | opus  | no\*     | Performance: N+1 queries, unbounded loads, blocking async (\*CRITICAL_PERF overrides)         |
-| `test-auditor`         | opus  | yes\*    | Read-only test coverage auditor, quality scoring (★★★/★★/★) (\*critical path with zero tests) |
-| `test-fixer`           | opus  | yes      | Runs tests, fixes failures, creates missing tests (consumes test-auditor findings)            |
-| `code-simplifier`      | opus  | no       | Clarity, DRY, patterns                                                                        |
-| `functional-validator` | opus  | yes      | Validates UI with Playwright (auto-triggered on .tsx/.css changes)                            |
-| `terraform-validator`  | opus  | yes      | Validates env vars and Terraform consistency                                                  |
-| `memory-sync`          | opus  | no       | Syncs knowledge to MCP Memory                                                                 |
+| Agent                  | Model | Blocking | Purpose                                                     |
+| ---------------------- | ----- | -------- | ----------------------------------------------------------- |
+| `build-implementer`    | opus  | yes      | Autonomous implementation from spec, codes until tests pass |
+| `resolve-fixer`        | opus  | yes      | Autonomous bug fix, codes until QA flows pass               |
+| `code-reviewer`        | opus  | yes      | Security, types, bugs                                       |
+| `test-fixer`           | opus  | yes      | Runs tests, fixes failures, creates missing tests           |
+| `code-simplifier`      | opus  | no       | Clarity, DRY, patterns                                      |
+| `functional-validator` | opus  | yes      | Validates UI with Playwright (auto-triggered on .tsx/.css)  |
+| `terraform-validator`  | opus  | yes      | Validates env vars and Terraform consistency                |
+| `memory-sync`          | opus  | no       | Syncs knowledge to MCP Memory                               |
+
+## Hooks
+
+| Hook                        | Event                 | Purpose                                               |
+| --------------------------- | --------------------- | ----------------------------------------------------- |
+| `build-stop-guard.sh`       | Stop                  | Blocks stop while workflow active                     |
+| `stop-quality-check.sh`     | Stop                  | Blocks stop if code changes have quality issues       |
+| `build-continuity-hook.sh`  | PostToolUse (Skill)   | Injects next Skill() call between phases              |
+| `build-skill-register.sh`   | PreToolUse (Skill)    | Claims session ownership for build/resolve sub-skills |
+| `pre-commit-gate.sh`        | PreToolUse (Bash)     | Auto-format + type check + tests before git commit    |
+| `build-implement-stop.sh`   | Stop (agent)          | Enforces verify.sh for build-implementer agent        |
+| `build-session-recovery.sh` | SessionStart          | Detects stalled workflows, offers resume              |
+| `ask-user-empty-guard.sh`   | PostToolUse (AskUser) | Rejects empty/blank responses                         |
 
 ## Philosophy
 
@@ -174,7 +183,7 @@ Claude automatically triggers /build
 build-understand -> Aligns on WHAT to build (user approval gate)
 build-verify     -> Coverage baseline + QA test script design (user approval gate)
 build-implement  -> Autonomous implementation + test coverage check until verify.sh passes
-certify          -> Quality agents (incl. test-auditor) + deploy + production verification
+certify          -> Quality agents + deploy + production verification
          |
 Done
 ```
@@ -189,7 +198,7 @@ Claude automatically triggers /resolve
 resolve-investigate -> Diagnoses root cause + QA reproduction flows
 resolve-verify      -> User reviews diagnosis + approves QA flows
 resolve-fix         -> Autonomous fix + regression test + local QA verification
-resolve-certify     -> Quality agents (incl. test-auditor) + deploy + production QA
+resolve-certify     -> Quality agents + deploy + production QA
          |
 Done (trivial bugs skip directly from investigate)
 ```
@@ -238,7 +247,7 @@ npm run release
 
 This command will:
 
-1. Sync files from `~/.claude/` to `config/` (excluding personal files like `audit-command/`)
+1. Sync files from `~/.claude/` to `config/` (excluding personal files)
 2. Bump the patch version automatically
 3. Create a git commit and push
 4. Publish to npm
@@ -248,8 +257,8 @@ This command will:
 - `CLAUDE.md`, `ARCHITECTURE.md`
 - `skills/` (build, resolve, deliberate workflows)
 - `commands/` (gate)
-- `agents/` (all 11 subagents)
-- `hooks/` (6 lifecycle hooks)
+- `agents/` (all 8 subagents)
+- `hooks/` (8 lifecycle hooks)
 - `templates/` (if present)
 
 **Files excluded:**

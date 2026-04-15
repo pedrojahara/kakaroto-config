@@ -80,8 +80,8 @@ async function main() {
   console.log("  - ARCHITECTURE.md (documentation)");
   console.log("  - skills/ (workflows: /build, /resolve, /deliberate)");
   console.log("  - commands/ (commands: /gate)");
-  console.log("  - agents/ (10 specialized subagents)");
-  console.log("  - hooks/ (6 workflow lifecycle hooks)\n");
+  console.log("  - agents/ (8 specialized subagents)");
+  console.log("  - hooks/ (8 lifecycle hooks)\n");
 
   const fileCount = countFiles(CONFIG_DIR);
   console.log(`Total: ${fileCount} files\n`);
@@ -113,7 +113,12 @@ async function main() {
     "skills/build-plan-implement",
     "skills/think",
   ];
-  const DEPRECATED_FILES = ["agents/build-plan-implementer.md"];
+  const DEPRECATED_FILES = [
+    "agents/build-plan-implementer.md",
+    "agents/performance-reviewer.md",
+    "agents/red-team.md",
+    "agents/test-auditor.md",
+  ];
 
   for (const p of DEPRECATED_DIRS) {
     const full = path.join(CLAUDE_DIR, p);

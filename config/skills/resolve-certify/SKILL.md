@@ -75,34 +75,31 @@ Read `Severity` from diagnosis.
 - **TRIVIAL/STANDARD:** Skip quality agents. verify.sh (Step 1) is sufficient.
 - **COMPLEX:** Read `.workflow/resolve/{slug}/fix-notes.md` for hotspots and concerns. Run sequentially:
   1. `Task(code-simplifier)` -- "Focus review on these files and concerns: {files changed + concerns from fix-notes}"
-  2. `Task(performance-reviewer)` -- "Review performance dos arquivos modificados: {git diff --stat summary}"
-     If `CRITICAL_PERF: true`: re-invocar performance-reviewer com "Fix os issues CRITICAL. AUTO-FIX independente de confidence." Se persistir após 2 tentativas, escalar via gate protocol.
-  3. `Task(code-reviewer)` -- **ISOLADO (Builder-Critic Separation):** NÃO passar fix-notes.md. Computar scope flags:
-     ```bash
-     CHANGED=$(git diff origin/main...HEAD --name-only)
-     SCOPE_FLAGS=""
-     echo "$CHANGED" | grep -iE 'auth|jwt|session|middleware|login|permission' && SCOPE_FLAGS="$SCOPE_FLAGS SCOPE_AUTH"
-     echo "$CHANGED" | grep -iE 'routes/|api/|controllers/|handlers/' && SCOPE_FLAGS="$SCOPE_FLAGS SCOPE_API"
-     echo "$CHANGED" | grep -iE 'migration|schema|\.sql|prisma' && SCOPE_FLAGS="$SCOPE_FLAGS SCOPE_MIGRATIONS"
-     ```
-     Passar APENAS diff + scope flags + project rules: "SCOPE FLAGS: {flags}. Review o diff contra as regras do projeto."
-  4. `Task(red-team)` -- "Code reviewer findings: {output do code-reviewer}. Review adversarial do diff."
-  5. `Task(test-auditor)` -- "Audit test coverage and quality for changed files. Red-team test stubs: {red-team test stubs output}."
-  6. `Task(test-fixer)` -- "Rodar npm test após review agents. Corrigir testes que falharem. Integrar regression test stubs sugeridos pelo red-team: {red-team test stubs output}. Test audit findings: {COMPLETE output do test-auditor da fase 5}."
+  2. `Task(code-reviewer)` -- "Focus review on these files and concerns: {files changed + concerns from fix-notes}"
 
-If code-reviewer or red-team returns `STATUS: FAIL`: fix the identified issues, then re-run:
+If code-reviewer returns `STATUS: FAIL`: fix the identified issues, then re-run:
 
 ```bash
 bash .workflow/build/verify.sh resolve-{slug}
 ```
 
-Re-invoke the failing agent. If same issues persist after 2 fix cycles, escalate via gate protocol:
+Re-invoke code-reviewer. If same issues persist after 2 fix cycles, escalate via gate protocol:
 
-- Write `.workflow/resolve/{slug}/gate-pending.md` with: agent concerns, what you tried, remaining issues
-- Footer: `<!-- GATE_QUESTION: Review issues persist after 2 fix attempts. How should I proceed? -->` `<!-- GATE_OPTIONS: Fix with guidance | Accept remaining issues | Abort -->` `<!-- GATE_STEP: 2 -->`
+- Write `.workflow/resolve/{slug}/gate-pending.md` with: code-reviewer concerns, what you tried, remaining issues
+- Footer: `<!-- GATE_QUESTION: Code reviewer issues persist after 2 fix attempts. How should I proceed? -->` `<!-- GATE_OPTIONS: Fix with guidance | Accept remaining issues | Abort -->` `<!-- GATE_STEP: 2 -->`
 - Return `{slug}: GATE`
 
-**test-auditor BLOCKING:** If test-auditor returns `BLOCKING: true` (critical path with zero tests), test-fixer (6) addresses it. After test-fixer completes, if critical gaps remain (test-fixer returns `STATUS: FAIL`), escalate via gate protocol.
+## Step 2.5: Post-Quality Verification (Iron Law)
+
+**Iron Law: "Code changed since last verification → Test again. Confidence is not evidence."**
+
+If any quality agent modified code in Step 2 (COMPLEX only), re-verify and re-commit before deploying:
+
+```bash
+bash .workflow/build/verify.sh resolve-{slug}
+```
+
+If **FAIL**: fix the regression introduced by quality agents, re-run. Must pass before proceeding to deploy.
 
 ## Step 3: Deploy + Production QA
 

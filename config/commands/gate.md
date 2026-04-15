@@ -70,28 +70,6 @@ Identificar:
 - Linhas adicionadas/removidas
 - Se arquivos de ambiente/config mudaram
 
-### Scope Flags
-
-Analisar arquivos no diff para determinar review depth:
-
-```bash
-CHANGED=$(git diff origin/main...HEAD --name-only)
-SCOPE_FLAGS=""
-echo "$CHANGED" | grep -iE 'auth|jwt|session|middleware|login|permission' && SCOPE_FLAGS="$SCOPE_FLAGS SCOPE_AUTH"
-echo "$CHANGED" | grep -iE 'routes/|api/|controllers/|handlers/' && SCOPE_FLAGS="$SCOPE_FLAGS SCOPE_API"
-echo "$CHANGED" | grep -iE 'migration|schema|\.sql|prisma' && SCOPE_FLAGS="$SCOPE_FLAGS SCOPE_MIGRATIONS"
-```
-
-| Flag             | Trigger                                           | Review Depth                                             |
-| ---------------- | ------------------------------------------------- | -------------------------------------------------------- |
-| SCOPE_AUTH       | auth, jwt, session, middleware, login, permission | Deep: trust boundaries, token handling, session fixation |
-| SCOPE_API        | routes/, api/, controllers/, handlers/            | Deep: input validation, rate limiting, error exposure    |
-| SCOPE_MIGRATIONS | migration, schema, .sql, prisma                   | Deep: backwards compatibility, data loss, rollback       |
-
-_(Performance é tratada pelo performance-reviewer dedicado — sem scope flag.)_
-
-Passar scope flags no prompt do code-reviewer (Step 4).
-
 ---
 
 ## Phase 3: Agent Delegation
@@ -101,9 +79,9 @@ Based on changes detected, invoke appropriate agents **using Task tool with suba
 **IMPORTANTE:** Todos os agents sao TOTALMENTE AUTONOMOS - eles irao identificar E CORRIGIR problemas automaticamente.
 
 **Ordem de execucao:**
-`test-fixer (baseline) -> code-simplifier (inclui DRY) -> performance-reviewer -> code-reviewer (scope flags) -> red-team -> test-auditor (coverage + quality) -> test-fixer (verificacao + audit) -> functional-validator (se UI) -> terraform-validator (se env)`
+`test-fixer (baseline) -> code-simplifier (inclui DRY) -> test-fixer (verificacao) -> code-reviewer -> functional-validator (se UI) -> terraform-validator (se env)`
 
-### Step 1: Test Fixer (BASELINE)
+### 3.1 Test Fixer (BASELINE)
 
 Garantir que codigo implementado passa nos testes ANTES de refatorar.
 
@@ -118,7 +96,7 @@ Garantir que codigo implementado passa nos testes ANTES de refatorar.
 
 **If tests fail:** Fix before proceeding. NAO prosseguir ate baseline passar.
 
-### Step 2: Code Simplification (inclui DRY)
+### 3.2 Code Simplification (inclui DRY)
 
 **Invoke:** `Task` tool with `subagent_type: code-simplifier`
 
@@ -130,81 +108,36 @@ Garantir que codigo implementado passa nos testes ANTES de refatorar.
 - Duplications replaced with calls to existing utils/services
 - Reimplementations flagged and fixed
 
-### Step 3: Performance Review
+### 3.3 Test Fixer (VERIFICACAO)
 
-**Invoke:** `Task` tool with `subagent_type: performance-reviewer`
-
-**Prompt:** "Review performance dos arquivos modificados: {git diff --stat summary}"
-
-**Expected output:**
-
-- N+1 queries fixed
-- Unbounded loads fixed
-- Performance concerns documented
-
-**If CRITICAL_PERF: true:** O orquestrador deve investigar o issue indicado e corrigir diretamente, ou re-invocar performance-reviewer com: "Fix os issues CRITICAL que você encontrou. AUTO-FIX independente de confidence." Se persistir após 2 tentativas, escalar para o usuário.
-
-### Step 4: Code Review (com Scope Flags)
-
-**Invoke:** `Task` tool with `subagent_type: code-reviewer`
-
-**Prompt:** "SCOPE FLAGS: {scope flags da Phase 2}. Deep review areas ativos. Focus review on these files: {diff summary}"
-
-**Expected output:**
-
-- Security issues with confidence calibration
-- Type safety violations
-- Scope-specific deep review (auth, API, migrations)
-- Items para decisao (MEDIUM/LOW confidence) reportados
-
-**If CRITICAL issues (HIGH confidence) found:** Fix before proceeding.
-
-### Step 5: Red Team Review
-
-**Invoke:** `Task` tool with `subagent_type: red-team`
-
-**Prompt:** Incluir o output COMPLETO do code-reviewer (todas as tabelas e seções, NÃO resumir): "Code reviewer findings: {output completo do code-reviewer}. Review adversarial do diff para trust boundaries, silent failures, race conditions."
-
-**Expected output:**
-
-- Adversarial findings (trust boundaries, silent failures, race conditions)
-- Regression test stubs para issues corrigidos
-
-**If STATUS: FAIL:** Fix identified issues before proceeding.
-
-### Step 6: Test Auditor (Coverage + Quality)
-
-**Invoke:** `Task` tool with `subagent_type: test-auditor`
-
-**Prompt:** "Audit test coverage and quality for changed files. Red-team test stubs: {red-team test stubs output from Step 5}."
-
-**Expected output:**
-
-- Coverage map with quality scores (★★★/★★/★)
-- Untested functions list
-- Critical path files below threshold
-- Red-team stub cross-reference
-
-### Step 7: Test Fixer (VERIFICAÇÃO + Audit)
-
-Verificar que TODAS as correcoes de TODOS os agents (simplifier, performance, reviewer, red-team) passam nos testes.
-Integrar test stubs sugeridos pelo red-team. Criar/upgrade testes conforme audit do test-auditor.
+Garantir que refatoracoes nao quebraram nada.
 
 **Invoke:** `Task` tool with `subagent_type: test-fixer`
 
-**Prompt:** "Rodar npm test apos todas as correcoes dos agents de review. Corrigir testes que falharem. Criar testes faltantes para funcoes novas. Se houver regression test stubs sugeridos pelo red-team, integrá-los. Test audit findings: {COMPLETE output do test-auditor da Step 6}."
+**Prompt:** "Rodar npm test apos refatoracoes. Corrigir testes que falharem. Criar testes faltantes para funcoes novas."
 
 **Expected output:**
 
 - All tests passing
 - New functions have tests
-- Red-team regression tests integrated
-- Critical path files upgraded toward ★★★ quality
 - No skipped tests without justification
 
 **If tests fail:** Fix before proceeding.
 
-### Step 8: Visual Validation (SE UI)
+### 3.4 Code Review
+
+**Invoke:** `Task` tool with `subagent_type: code-reviewer`
+
+**Expected output:**
+
+- Security issues (CRITICAL)
+- Type safety violations (CRITICAL)
+- Code quality issues (HIGH/MEDIUM)
+- Environment compatibility issues
+
+**If CRITICAL issues found:** Fix before proceeding.
+
+### 3.5 Visual Validation (SE UI)
 
 **Detect UI changes:**
 
@@ -232,7 +165,7 @@ git diff origin/main...HEAD --name-only | grep -E '\.(tsx|css|scss)$' | grep -v 
 
 **If FAIL after 3 attempts:** BLOCK gate, report errors to user.
 
-### Step 9: Environment Validation (SE env)
+### 3.6 Environment Validation (SE env)
 
 **Detect env changes:**
 
@@ -272,11 +205,8 @@ Collect results from all agents (na ordem de execucao):
 | ------------------------ | -------------- | ------------ | ----- |
 | test-fixer (baseline)    | PASS/FAIL      | X            | X     |
 | code-simplifier (DRY)    | PASS/FAIL      | X            | X     |
-| performance-reviewer     | PASS/FAIL      | X            | X     |
-| code-reviewer (scope)    | PASS/FAIL      | X            | X     |
-| red-team                 | PASS/FAIL      | X            | X     |
-| test-auditor (coverage)  | PASS/FAIL      | X            | 0     |
 | test-fixer (verificacao) | PASS/FAIL      | X            | X     |
+| code-reviewer            | PASS/FAIL      | X            | X     |
 | functional-validator     | SKIP/PASS/FAIL | X            | X     |
 | terraform-validator      | SKIP/PASS/FAIL | X            | X     |
 
@@ -323,11 +253,8 @@ Gerar relatorio consolidado:
 | ------------------------ | ---------------- | ------------ | ----- |
 | test-fixer (baseline)    | [PASS/FAIL]      | X            | X     |
 | code-simplifier (DRY)    | [PASS/FAIL]      | X            | X     |
-| performance-reviewer     | [PASS/FAIL]      | X            | X     |
-| code-reviewer (scope)    | [PASS/FAIL]      | X            | X     |
-| red-team                 | [PASS/FAIL]      | X            | X     |
-| test-auditor (coverage)  | [PASS/FAIL]      | X            | 0     |
 | test-fixer (verificacao) | [PASS/FAIL]      | X            | X     |
+| code-reviewer            | [PASS/FAIL]      | X            | X     |
 | functional-validator     | [SKIP/PASS/FAIL] | X            | X     |
 | terraform-validator      | [SKIP/PASS/FAIL] | X            | X     |
 

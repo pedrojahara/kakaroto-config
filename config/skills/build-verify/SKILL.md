@@ -38,34 +38,7 @@ Ensure AskUserQuestion is available: `ToolSearch("select:AskUserQuestion", max_r
 
 Read `.workflow/build/{slug}/spec.md`. Understand what was approved. If helpful, explore relevant pages/components to understand the UI surface.
 
-## Step 2: Coverage Baseline
-
-Identify test coverage gaps in the areas this feature will touch. This informs V4+ design and guides build-implement on where to create tests.
-
-1. **Identify touchpoints:** From the spec's `## Acceptance Criteria` and `## Implementation Plan`, extract source files/directories this feature will modify or depend on.
-
-2. **Map tests:** For each source file, use Glob to check for corresponding test file (`utils/foo.ts` → `utils/foo.test.ts`). Use Grep to check if key exported functions have test cases.
-
-3. **Score each touchpoint:**
-   - **COVERED:** Test file exists AND key functions have test cases
-   - **PARTIAL:** Test file exists but key functions lack cases
-   - **MISSING:** No test file found
-
-4. **Write baseline** to spec.md as `## Coverage Baseline` (insert before `## Source`):
-
-```
-## Coverage Baseline
-
-| Source File | Test File | Status | Gap |
-|------------|-----------|--------|-----|
-
-Uncovered areas: {count} of {total} touchpoints lack full test coverage.
-Priority gaps: {list files with MISSING status}
-```
-
-Scope: Only files the feature touches (5-15 max). Not the entire codebase.
-
-## Step 3: Design QA Verification
+## Step 2: Design QA Verification
 
 The verification system has two layers — you design the second one:
 
@@ -74,8 +47,6 @@ The verification system has two layers — you design the second one:
 
 Design V4+ as QA test scripts. Think: **what would convince a skeptical user that this works?**
 
-**Use the Coverage Baseline** from Step 2 to prioritize: areas with MISSING or PARTIAL test coverage deserve extra V4+ attention, since they lack the safety net of unit tests.
-
 ```
 V4: {Test name}
   - steps:
@@ -83,11 +54,36 @@ V4: {Test name}
     2. Click [button/element]
     3. Fill [field] with [value]
     4. Verify [expected result visible on screen]
+  - checks:
+    - console: no-errors
+    - url: contains "[expected path]"
+    - text: visible "[key text that proves success]"
+    - text: not-visible "[text that indicates failure]"
+    - state: no-loading
 ```
 
 Every step must be a concrete, observable action.
 
-## Step 4: Ask for Approval
+### Checks DSL
+
+Checks are **deterministic safety nets** executed via `browser_evaluate` / `browser_console_messages` after the LLM completes all steps. They supplement prose steps — they don't replace them.
+
+| Type                    | Syntax        | What it verifies                      |
+| ----------------------- | ------------- | ------------------------------------- |
+| `console: no-errors`    | Fixed         | No error-level console messages       |
+| `url: contains "X"`     | Parameterized | Current URL includes string X         |
+| `text: visible "X"`     | Parameterized | Page text contains X                  |
+| `text: not-visible "X"` | Parameterized | Page text does NOT contain X          |
+| `state: no-loading`     | Fixed         | No spinners/loading indicators active |
+
+Rules:
+
+- Every V4+ flow SHOULD have checks (recommended, not mandatory)
+- At minimum include `console: no-errors` — catches the most common false positives
+- Use `text: visible` for the KEY outcome, not every piece of text on the page
+- Checks don't require DOM knowledge — they use generic text/URL/console patterns
+
+## Step 3: Ask for Approval
 
 Call AskUserQuestion with this exact structure:
 

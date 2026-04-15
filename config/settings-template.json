@@ -9,6 +9,15 @@
             "timeout": 10
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$HOME/.claude/hooks/stop-quality-check.sh\"",
+            "timeout": 30
+          }
+        ]
       }
     ],
     "SessionStart": [
@@ -29,6 +38,16 @@
             "type": "command",
             "command": "bash \"$HOME/.claude/hooks/build-skill-register.sh\"",
             "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$HOME/.claude/hooks/pre-commit-gate.sh\"",
+            "timeout": 60
           }
         ]
       }
