@@ -107,14 +107,8 @@ async function main() {
   }
 
   // Clean up deprecated paths from previous versions
-  const DEPRECATED_DIRS = [
-    "skills/build-plan",
-    "skills/build-plan-spec",
-    "skills/build-plan-implement",
-    "skills/think",
-  ];
+  const DEPRECATED_DIRS = [];
   const DEPRECATED_FILES = [
-    "agents/build-plan-implementer.md",
     "agents/performance-reviewer.md",
     "agents/red-team.md",
     "agents/test-auditor.md",

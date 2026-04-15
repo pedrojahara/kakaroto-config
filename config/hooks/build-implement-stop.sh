@@ -1,11 +1,15 @@
 #!/bin/bash
 # Stop hook for build-implementer agent.
 # Blocks stop if verify.sh --full fails for the active build.
+set -euo pipefail
+
 INPUT=$(cat)
 STOP_ACTIVE=$(echo "$INPUT" | jq -r '.stop_hook_active // false')
-if [ "$STOP_ACTIVE" = "true" ]; then
-  exit 0
-fi
+[ "$STOP_ACTIVE" = "true" ] && exit 0
+
+CWD=$(echo "$INPUT" | jq -r '.cwd // empty')
+[ -z "$CWD" ] && exit 0
+cd "$CWD"
 
 VERIFY=".workflow/build/verify.sh"
 if [ ! -f "$VERIFY" ]; then

@@ -25,7 +25,7 @@ cd "$CWD"
 
 # Skip if active workflow (build-stop-guard.sh handles these)
 SESSION_ID=$(echo "$INPUT" | jq -r '.session_id // empty')
-if [ -n "$SESSION_ID" ]; then
+if [ -n "$SESSION_ID" ] && [ -d "$CWD/.workflow" ]; then
   for owner in "$CWD"/.workflow/build/*/.build-owner "$CWD"/.workflow/resolve/*/.build-owner; do
     if [ -f "$owner" ] 2>/dev/null && [ "$(cat "$owner" 2>/dev/null)" = "$SESSION_ID" ]; then
       exit 0

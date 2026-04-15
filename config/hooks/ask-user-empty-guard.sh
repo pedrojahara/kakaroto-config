@@ -9,23 +9,14 @@ INPUT=$(cat)
 # Extract the tool result text
 TOOL_OUTPUT=$(echo "$INPUT" | jq -r '.tool_response // empty')
 
-# Check for common empty-response patterns in the output
-# AskUserQuestion returns answers as "question: answer" pairs
-# An empty answer would show as empty string, whitespace, or "Other: "
-if echo "$TOOL_OUTPUT" | grep -qE '^\s*$' 2>/dev/null; then
-  echo "WARNING: AskUserQuestion received an EMPTY response. This is likely an accidental submission (user did not click Enter). You MUST re-ask the exact same question. Do NOT proceed as if the user approved."
-  exit 0
-fi
+# Detect empty responses: blank text, empty JSON answer, or all-blank answers array
+IS_EMPTY=false
+echo "$TOOL_OUTPUT" | grep -qE '^\s*$' 2>/dev/null && IS_EMPTY=true
+echo "$TOOL_OUTPUT" | grep -qiE '"answer"\s*:\s*""' 2>/dev/null && IS_EMPTY=true
+echo "$TOOL_OUTPUT" | jq -e 'if .answers then (.answers | to_entries | all(.value | test("^\\s*$"))) else false end' 2>/dev/null | grep -q true && IS_EMPTY=true
 
-# Check for answers that are just whitespace or "Other" with no content
-if echo "$TOOL_OUTPUT" | grep -qiE '"answer"\s*:\s*""' 2>/dev/null; then
-  echo "WARNING: AskUserQuestion received a BLANK answer. This is likely an accidental submission. You MUST re-ask the exact same question. Do NOT proceed as if the user approved."
-  exit 0
-fi
-
-# Check for the specific pattern where all answers are empty strings
-if echo "$TOOL_OUTPUT" | jq -e 'if .answers then (.answers | to_entries | all(.value | test("^\\s*$"))) else false end' 2>/dev/null | grep -q true; then
-  echo "WARNING: All AskUserQuestion answers are empty/blank. This is likely an accidental submission. You MUST re-ask the exact same question. Do NOT proceed as if the user approved."
+if [ "$IS_EMPTY" = "true" ]; then
+  echo "WARNING: AskUserQuestion received an EMPTY response. This is likely an accidental submission. You MUST re-ask the exact same question. Do NOT proceed as if the user approved."
   exit 0
 fi
 
