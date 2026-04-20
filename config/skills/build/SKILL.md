@@ -37,23 +37,35 @@ RIGHT:
 
 0. Load deferred tools: `ToolSearch("select:AskUserQuestion", max_results: 1)`
 
-1. **Generate slug from `$ARGUMENTS`:**
-   - If `$ARGUMENTS` ends in `.md` → slug from filename + date
-     (strip `.md` extension and path prefix, append today's date).
-   - Otherwise → slug from first keyword + date (e.g., `auth-2026-02-24`).
+1. **Resolve slug from `$ARGUMENTS`:**
+   - If `$ARGUMENTS` starts with `slug:<name> ` → use `<name>` verbatim as slug; everything after the space is the description.
+   - Else if `$ARGUMENTS` ends in `.md` → `base` = filename (strip `.md` extension and path prefix).
+   - Else → `base` = first keyword of the description.
+
+   **Existing-spec match (try before stamping a date):**
+   Run `Glob(".workflow/build/{base}-*/spec.md")`.
+   - Exactly one match whose Status is NOT `DONE` → reuse that slug (enables cross-day resume).
+   - Multiple non-DONE matches → pick the most recent by directory mtime.
+   - Zero matches OR all matches are `DONE` → mint fresh slug: `{base}-{today}` (e.g., `auth-2026-02-24`).
+
+   Log the resolved slug to the user on the first turn so they can override with `slug:<name>` on the next invocation if needed.
 
 2. **RECOVERY** — Read `.workflow/build/{slug}/spec.md` Status:
+   - **Orphan gate check FIRST:** if `.workflow/build/{slug}/gate-pending.md` exists AND `.workflow/build/{slug}/gate-response.md` does NOT exist → resume the abandoned gate dialogue before anything else. Handle per Certify Escalation below starting at step 1 (read gate-pending.md, output body, parse footer, AskUserQuestion, write gate-response.md, delete gate-pending.md). THEN continue recovery with Status below.
+   - **Scope-drift check SECOND:** extract description from `$ARGUMENTS` (everything after the slug keyword). Read the spec's `## Original Request` section. If the new description contains meaningful content NOT present (semantically) in Original Request — e.g., new nouns, new acceptance criteria candidates, new constraints — DO NOT proceed with recovery. Instead jump to step 3 (re-invoke build-understand with full `$ARGUMENTS`) so the spec is updated before BUILDING. When in doubt, treat it as drift. If new description is empty or a strict subset of Original Request, continue with Status branches below.
    - `BUILDING` → jump to step 5
    - `CERTIFYING` → jump to step 6
-   - `DONE` → inform user, exit
-   - `UNDERSTOOD` or `VERIFIED` → jump to step 4
+   - `DONE` → inform user that this slug is already done and suggest a new slug for additional work, exit
+   - `UNDERSTOOD` or `VERIFIED` → jump to step 4 (VERIFIED retained only for legacy specs — the current pipeline ends Understand at UNDERSTOOD after V4+ approval inside build-understand)
    - `DRAFTING` → jump to step 3
    - Otherwise (no spec / no status) → continue to step 3
 
-3. Skill("build-understand", args: "{slug} {$ARGUMENTS}")
-   Read `.workflow/build/{slug}/spec.md` Status:
-   - `UNDERSTOOD` → proceed to step 4
-   - Spec missing or Status not UNDERSTOOD → build cancelled, inform user, exit
+3. result = Skill("build-understand", args: "{slug} {$ARGUMENTS}")
+   - If `result` starts with `REDIRECT:` → parse the target skill from the REDIRECT payload (e.g., `REDIRECT: /resolve <description>` → invoke `Skill("resolve", args: "<description>")`). Do NOT write spec, do NOT proceed to step 4. Exit /build after the redirected skill returns.
+   - If `result` ends in `CANCELLED` → inform user the build was cancelled (with the reason if available), exit.
+   - Otherwise, read `.workflow/build/{slug}/spec.md` Status:
+     - `UNDERSTOOD` → proceed to step 4
+     - Spec missing or Status not UNDERSTOOD → build cancelled, inform user, exit
 
 4. Edit spec Status → `BUILDING`
    Skill("build-implement", args: "{slug}")

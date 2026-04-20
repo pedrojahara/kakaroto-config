@@ -5,6 +5,7 @@ context: fork
 agent: build-implementer
 user-invocable: false
 model: opus
+effort: xhigh
 ---
 
 # IMPLEMENT — Build from Spec
@@ -32,6 +33,7 @@ You receive `{slug}` from `$ARGUMENTS`.
    The plan has code snippets, parameters, architecture decisions.
    **When spec and plan conflict, plan wins** (written by user).
    When plan references code that no longer exists, trust current codebase.
+   **Codebase invariant check:** if the plan directs a change that violates a convention stated in CLAUDE.md, an existing architectural pattern, or a declared constraint (security / data-integrity / cross-module API contract), do NOT silently comply. Record the conflict as a `## Concerns` bullet in `implementation-notes.md`, implement the spec's acceptance criteria using the convention-respecting approach, and surface the conflict explicitly so code-reviewer catches it in build-certify. Do NOT escalate to user at this stage — the handoff is via notes; the user sees the surfaced concern at certify time.
 5. Read the project's `CLAUDE.md` — these are your constraints
 6. Search memory for relevant patterns: `mcp__memory__search_nodes({ query: "patterns" })`
 7. **(Skip if spec has `## Source`.)** Find an exemplar feature similar to this request — study its anatomy (types → service → handler → tests → UI) before writing any code
@@ -47,7 +49,7 @@ You receive `{slug}` from `$ARGUMENTS`.
 
 ## Build
 
-Read `${CLAUDE_SKILL_DIR}/../build-verify/verify-template.md` and generate `.workflow/build/verify.sh` with V1-V3 baselines.
+Read `${CLAUDE_SKILL_DIR}/verify-template.md` and generate `.workflow/build/verify.sh` with V1-V3 baselines.
 
 Freedom in HOW. Hard constraints: spec acceptance criteria, CLAUDE.md conventions, verify.sh passes.
 Run `bash .workflow/build/verify.sh {slug}` frequently as feedback loop. If the same approach fails twice, reconsider via Sequential Thinking.

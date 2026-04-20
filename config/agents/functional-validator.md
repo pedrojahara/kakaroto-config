@@ -1,7 +1,7 @@
 ---
 name: functional-validator
 description: "Functional validation with Playwright. Auto-triggered after UI changes (.tsx, .css). Starts dev server, runs smoke tests on configured forms, verifies items created/listed. FULLY AUTONOMOUS - fixes issues automatically until app works."
-tools: Bash, Read, Edit, Grep, Glob, mcp__playwright__browser_navigate, mcp__playwright__browser_snapshot, mcp__playwright__browser_console_messages, mcp__playwright__browser_click, mcp__playwright__browser_close, mcp__playwright__browser_wait_for, mcp__playwright__browser_tabs, mcp__playwright__browser_fill_form, mcp__playwright__browser_type
+tools: Bash, Read, Edit, Grep, Glob, Monitor, mcp__playwright__browser_navigate, mcp__playwright__browser_snapshot, mcp__playwright__browser_console_messages, mcp__playwright__browser_click, mcp__playwright__browser_close, mcp__playwright__browser_wait_for, mcp__playwright__browser_tabs, mcp__playwright__browser_fill_form, mcp__playwright__browser_type
 model: opus
 ---
 
@@ -31,16 +31,19 @@ Se nenhum arquivo UI foi modificado, retornar PASS imediatamente.
 
 Usar livremente para validar:
 
-| Ferramenta | Uso |
-|---|---|
-| `browser_navigate` | Navegar para rota |
-| `browser_snapshot` | Capturar estado acessivel da pagina |
-| `browser_console_messages` | Verificar erros no console |
-| `browser_fill_form` / `browser_type` | Preencher formularios |
-| `browser_click` | Interagir com elementos |
-| `browser_wait_for` | Aguardar condicoes |
-| `Read` / `Edit` | Ler e corrigir codigo fonte |
-| `Bash` | Start/stop dev server, verificar porta |
+| Ferramenta                           | Uso                                                                                           |
+| ------------------------------------ | --------------------------------------------------------------------------------------------- |
+| `browser_navigate`                   | Navegar para rota                                                                             |
+| `browser_snapshot`                   | Capturar estado acessivel da pagina                                                           |
+| `browser_console_messages`           | Verificar erros no console                                                                    |
+| `browser_fill_form` / `browser_type` | Preencher formularios                                                                         |
+| `browser_click`                      | Interagir com elementos                                                                       |
+| `browser_wait_for`                   | Aguardar condicoes                                                                            |
+| `Read` / `Edit`                      | Ler e corrigir codigo fonte                                                                   |
+| `Bash`                               | Start/stop dev server, verificar porta                                                        |
+| `Monitor`                            | Tail do log do dev server em background — reage a 5xx/erros sem segurar o turn com sleep loop |
+
+Preferir `Monitor` para observar o dev server depois de iniciado (ex.: `tail -f dev-server.log`). Cada evento vira mensagem no transcript e pode ser tratado imediatamente.
 
 Config do projeto (se existir): `.claude/functional-validation.json` com `server.command`, `server.port`, `smokeTests`.
 Defaults razoaveis: `npm run dev`, porta 3000.

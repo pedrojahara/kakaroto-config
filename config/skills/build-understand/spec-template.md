@@ -55,12 +55,18 @@ V4: {Test name}
   - console: no-errors
   - text: visible "[key text]"
 
+## Rejected Alternatives
+
+{Only for DELIBERATION FILE inputs — one-line summary of each rejected scenario from the deliberation, so context is preserved without polluting Implementation Plan. Omit section for PLAN FILE or DESCRIPTION inputs.}
+
 ## Implementation Plan
 
-{FULL content from the plan/arguments. Nothing omitted.
-If input was a plan file: include ENTIRE file content.
-If input was a description: include it verbatim.
-Organize into logical subsections preserving the plan's structure.}
+{Content depends on input kind:
+
+- **PLAN FILE input:** ENTIRE file content verbatim (Zero Information Loss). Any branch ruled out during Coherence Check is struck through with ~~text~~ and annotated.
+- **DELIBERATION FILE input:** ONLY the refined/chosen approach — rejected scenarios go into ## Rejected Alternatives above.
+- **DESCRIPTION input:** the $ARGUMENTS description verbatim.
+  Organize into logical subsections preserving the plan's structure.}
 
 ## Source
 
@@ -81,4 +87,5 @@ Organize into logical subsections preserving the plan's structure.}
 - `## Assumptions` captures autonomous decisions for tasks where no questions were asked (omit if none)
 - `## Constraints` captures DO NOT rules from plan + analysis (omit if none)
 - `## Verification` contains V4+ QA test scripts for COMPLEX+UI tasks ONLY (omit for TRIVIAL/STANDARD)
-- **ZERO INFORMATION LOSS:** Every piece of information from the input MUST appear in the spec
+- `## Rejected Alternatives` present ONLY for DELIBERATION FILE inputs (summaries of rejected scenarios). Omit otherwise.
+- **ZERO INFORMATION LOSS applies to PLAN FILE and DESCRIPTION inputs only.** For DELIBERATION FILE inputs, rejected scenarios are INTENTIONALLY summarized (not reproduced verbatim) in `## Rejected Alternatives` — keeping them in `## Implementation Plan` would pollute execution guidance.

@@ -12,19 +12,20 @@
 
 ### Scenarios Simulated
 
-| # | Cenário | Resultado | Trade-off |
-|---|---------|-----------|-----------|
-| 1 | {nome} | {resolve X% da dor} | {trade-off em 1 linha} |
-| 2 | {nome} | ... | ... |
-| 3 | {nome} | ... | ... |
-| 4 | {nome} | ... | ... |
-| 5 | {nome} | ... | ... |
+Resumo narrativo — cada cenário é uma one-liner temporal (o detalhe Dia1→Mês6 viveu na sessão; aqui fica só o outcome).
+
+1. **{nome}** — Dia 1: {mudança} → Mês 6: {resultado}. Trade-off: {1 linha}.
+2. **{nome}** — ...
+3. **{nome}** — ...
+4. **{nome}** — ...
+5. **{nome}** — ...
 
 ### Decision
 
 **Chosen:** {cenário escolhido + breve descrição}
 **Why:** {1-2 frases explicando por que esse outcome é o melhor fit}
 **Why not others:**
+
 - {cenário descartado}: {1 linha com o motivo}
 - {cenário descartado}: {1 linha com o motivo}
 - ...
@@ -48,3 +49,12 @@
 ```
 /build {comando exato descrevendo o que implementar, baseado na abordagem refinada}
 ```
+
+### Taste Memory Update (opcional)
+
+Preferências reveladas por essa decisão (kebab-case, 2-4 items):
+
+- `{preferência-1}`
+- `{preferência-2}`
+
+Serão anexadas em `.workflow/explorations/.taste.json` para enviesar deliberações futuras no mesmo projeto.

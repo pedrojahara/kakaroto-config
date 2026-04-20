@@ -37,20 +37,27 @@ Otherwise → **DESCRIPTION MODE** — continue to Phase 1 below.
 The plan was collaboratively developed — it IS the approved intent.
 No interview. No confirmation. Convert to spec autonomously.
 
-**Override:** Do NOT call AskUserQuestion in plan mode.
+**Override:** Do NOT call AskUserQuestion in plan mode — EXCEPT via the Contradiction Escape in step 4.
 
-1. Read the plan file in full
-2. Search memory: `mcp__memory__search_nodes({ query: "relevant-topic" })`
-3. Explore codebase areas referenced in plan (Glob/Grep/Read) — validate references exist
-4. Classify Complexity from plan scope (TRIVIAL | STANDARD | COMPLEX)
-5. Extract: What, Acceptance Criteria, Edge Cases, Constraints
-6. `## Implementation Plan` = ENTIRE plan content (Zero Information Loss)
-7. If COMPLEX and plan involves UI: design `## Verification` section with V4+ QA flows (see V4+ Design below)
-8. Read `${CLAUDE_SKILL_DIR}/spec-template.md`
-9. Write spec to `.workflow/build/{slug}/spec.md` — Status: UNDERSTOOD
-10. `## Source` MUST contain the plan file path
+1. Read the plan file in full.
+2. **Detect file kind (shape check):**
+   - **DELIBERATION FILE** if ANY of: path contains `/explorations/`, file has `## Deliberation` heading, file contains `### Cenário` blocks with `Dia 1:` / `Mês 6:` temporal narratives, or file contains a `Pre-mortem` / `Caminho de falha` section. These artifacts come from `/deliberate`.
+   - **PLAN FILE** otherwise (e.g., `.workflow/plans/*.md` from Plan Mode exit).
+3. Search memory: `mcp__memory__search_nodes({ query: "relevant-topic" })`. Read the project's `CLAUDE.md` (stack/conventions). Explore codebase areas referenced in the plan (Glob/Grep/Read) — validate references exist. When the plan references code that no longer exists, note it as a `## Concerns` bullet (trust current codebase per build-implement's rule).
+4. **Coherence check — BLOCKING:** Scan the plan for (a) internal contradictions (two different libraries / SDKs / strategies chosen for the same capability) and (b) conflicts with CLAUDE.md's declared stack or conventions. List every pair.
+   - Empty list → proceed to step 5.
+   - Non-empty → **Contradiction Escape.** Call AskUserQuestion ONCE with the contradictions as mutually exclusive options (one per resolution, plus `Cancel build`). This is the only AskUserQuestion call permitted in PLAN MODE. Record the resolution in `## Decisions Made`. If user picks Cancel → return `{slug}: CANCELLED`.
+5. Classify Complexity from plan scope (TRIVIAL | STANDARD | COMPLEX).
+6. Extract: What, Acceptance Criteria, Edge Cases, Constraints.
+7. Build `## Implementation Plan`:
+   - **PLAN FILE:** ENTIRE plan content verbatim (Zero Information Loss). Strike through any branch ruled out in step 4 using `~~text~~` and annotate with `<!-- resolved: chose X per user decision -->`. Losing branch stays visible but unambiguously dead.
+   - **DELIBERATION FILE:** Extract ONLY the refined / chosen approach (the final section after "Cenário escolhido" / "Abordagem refinada" / pre-mortem mitigations). Rejected scenarios are context — summarize them as one-line bullets under a `## Rejected Alternatives` section in the spec so context is preserved without polluting execution guidance.
+8. If COMPLEX and plan involves UI: design `## Verification` section with V4+ QA flows (see V4+ Design below).
+9. Read `${CLAUDE_SKILL_DIR}/spec-template.md`.
+10. Write spec to `.workflow/build/{slug}/spec.md` — Status: UNDERSTOOD.
+11. `## Source` MUST contain the plan file path.
 
-Return `{slug}: UNDERSTOOD` — **STOP. Do NOT proceed to Phase 1 or any subsequent phase.**
+Return `{slug}: UNDERSTOOD` or `{slug}: CANCELLED` — **STOP. Do NOT proceed to Phase 1 or any subsequent phase.**
 
 ---
 
@@ -64,19 +71,37 @@ Return `{slug}: UNDERSTOOD` — **STOP. Do NOT proceed to Phase 1 or any subsequ
 ## Phase 1: EXPLORE
 
 1. Ensure AskUserQuestion is available: `ToolSearch("select:AskUserQuestion", max_results: 1)`
-2. Read the input description to understand user intent
-3. Search memory: `mcp__memory__search_nodes({ query: "relevant-topic" })`
-4. Explore the codebase:
-   - Find files related to the feature (Glob/Grep)
-   - Read existing patterns, types, services, handlers that relate
-   - Check for prior art / similar features already implemented
-5. If needed: use Context7, WebSearch, or WebFetch for external API/library docs
+2. **Intent pre-check (REDIRECT gate).** Scan the input description (case+accent-insensitive, word-boundary matching) for bug-fix keywords: `consertar`, `corrigir`, `arrumar`, `resolver bug`, `fix`, `bug`, `broken`, `quebrado`, `não funciona`, `nao funciona`, `erro`, `error`, `falha`, `crash`, `regression`, `regressão`. Also check for demonstrative references to prior conversation ("isso", "esse bug", "this", "that issue") combined with ANY of those keywords — signals a follow-up on a prior diagnosis. If ANY fires → return the string `REDIRECT: /resolve {original $ARGUMENTS after slug}` and STOP. Do NOT write a spec. The orchestrator handles the redirect per CLAUDE.md REDIRECT rule.
+3. **Discover prior workflow artifacts.**
+   - If the input description mentions `exploração`, `deliberação`, `/deliberate`, `conforme a exploração`, or `conforme discutido`: run `Glob(".workflow/explorations/*.md")`. If exactly one match exists, or the topic obviously matches one, treat it as a DELIBERATION FILE and switch to PLAN MODE with that path.
+   - If the input description mentions `plano`, `plan`, `conforme o plano`, `per the plan`, or `planning doc`: run `Glob(".workflow/plans/*.md")`. If exactly one match exists, or the topic obviously matches one, treat it as a PLAN FILE and switch to PLAN MODE with that path.
+4. **Scan recent conversation context** for user decisions already made in this session (library choices, constraints, UI preferences, explicit "only X / not Y" statements). These are inputs to the spec even if not in `$ARGUMENTS`. Record them in working memory for step 8.
+5. Read the input description to understand user intent.
+6. Search memory: `mcp__memory__search_nodes({ query: "relevant-topic" })`.
+7. **Explore the codebase — MANDATORY tool calls, not optional.** Opus 4.7 reduces tool calls by default; this step overrides that default:
+   - a. Extract every concrete noun from the request (e.g., `seed`, `db:seed`, `users`, `search`, `export`). For each noun, run at minimum `Glob("**/*{noun}*")` AND `Grep(noun)` across the repo.
+   - b. Read `package.json` / `nx.json` / `Cargo.toml` / equivalent manifest — scan `scripts`, `workspaces`, `targets`, dependencies for the same nouns.
+   - c. If ANY hit from (a) or (b) lands in the implementation surface (`src/`, `apps/`, `packages/`, `lib/`), Read those files in full before classifying.
+   - d. Read existing patterns, types, services, handlers that relate.
+   - e. Check for prior art — the closest similar feature already implemented.
+8. If needed: use Context7, WebSearch, or WebFetch for external API/library docs.
 
-**Phase 1 gate — confirm before proceeding to Phase 2:**
+**Phase 1 gate — BLOCKING. Fill with evidence, not claims. Scales with scope:**
 
-- Memory searched? (if skipped: state why zero relevant nodes exist)
-- Related files read? (list count)
-- Prior art checked? (name the closest existing pattern, or state "none found")
+Always required:
+
+- Intent check → keyword scan result (if bug signals matched, you already returned REDIRECT and are not here)
+- Workflow artifacts → Glob result of `.workflow/explorations/` and `.workflow/plans/`, or "none"
+- Prior art → closest file path, or "confirmed absent after searching {paths}"
+
+Additionally required unless the request is a one-file / one-line change (cosmetic text, simple rename, single-line config):
+
+- Conversation decisions → bullet list of prior-turn decisions, or "no prior session context"
+- Memory query string used
+- Glob/Grep evidence → list every `(pattern, hit_count)` pair from step 7a; if all zero, list the patterns tried
+- Manifest scan → quote the matching script/target line, or "no match in {manifest file}"
+
+**Extend-not-create rule:** if the feature noun already resolves to real files in the implementation surface, treat the task as "extend existing," not "create new," in Phase 2.
 
 ---
 
@@ -125,33 +150,38 @@ Evaluate whether you have enough information to write the spec:
 
 When you have enough information to write the spec — regardless of complexity:
 
-1. Write spec autonomously, stating assumptions in `## Assumptions` section
-2. **If ZERO assumptions** (exact pattern exists, single interpretation, nothing to challenge):
-   Skip confirmation entirely. Go directly to Finalize.
-3. **If assumptions exist** (agent made decisions that could reasonably be wrong):
+1. Draft spec in memory (do NOT persist to disk yet — Finalize is the only step that writes `.workflow/build/{slug}/spec.md`). Include `## Assumptions` listing autonomous decisions. If COMPLEX with UI, design V4+ as part of the draft per the V4+ Design section — this is what the approval gate in step 2 will show the user.
+2. **V4+ approval gate (only for COMPLEX + draft has `## Verification` section).** If Complexity == COMPLEX AND your draft contains a `## Verification` section with V4+ tests:
+   - Call AskUserQuestion ONCE specifically to approve V4+ scripts. Question: "Approve these V4+ QA scripts?" Options: `Approve (recommended)` / `Needs changes` / `Cancel build`. Preview MUST contain the FULL V4+ scripts verbatim — the user needs to see what they're approving.
+   - If "Needs changes" → read feedback, redesign V4+ (still in memory), re-ask (max 2 loops).
+   - If "Cancel" → return `{slug}: CANCELLED`.
+   - If "Approve" → continue to step 3.
+3. **If ZERO assumptions** (exact pattern exists, single interpretation, nothing to challenge):
+   Skip spec confirmation. Go directly to Finalize.
+4. **If assumptions exist** (agent made decisions that could reasonably be wrong):
    Call AskUserQuestion ONCE for confirmation:
    - question: "Here's what I'll build, with these assumptions: {list key assumptions}. Correct?"
    - options: `Correct — proceed` / `Needs changes` / `Cancel build`
    - preview: Brief walkthrough of what changes and how
-4. If "Correct" → Finalize
-5. If "Needs changes" → read feedback, adjust spec, re-ask (max 2 loops)
-6. If "Cancel" → return `{slug}: CANCELLED`
+5. If "Correct" → Finalize
+6. If "Needs changes" → read feedback, adjust spec, re-ask (max 2 loops)
+7. If "Cancel" → return `{slug}: CANCELLED`
 
 ### Path B — Gaps Remain (ASK heuristic triggered)
 
 When the request has genuine ambiguity — regardless of complexity:
 
-1. Call AskUserQuestion with your actual gaps (batch up to 4 questions per call):
+1. Call AskUserQuestion with your actual gaps (batch up to 4 questions per call — this is a soft guideline, not a hard cap; group related questions):
    - Frame as **decisions**, not confirmations ("Which approach?" not "Is this right?")
    - Include concrete options with clear implications for each
    - Batch related questions into ONE call whenever possible
 2. Process answers. If critical gaps remain: ONE more AskUserQuestion call (max 2 interview rounds total)
 3. Write draft spec with Status: DRAFTING
 4. If COMPLEX with UI: design V4+ tests (see V4+ Design below), include in `## Verification`
-5. Call AskUserQuestion for confirmation:
+5. Call AskUserQuestion for confirmation. Preview MUST show the user story walkthrough AND the full V4+ scripts (if present) so the user sees both what will be built and how it will be verified:
    - question: "Is the feature understanding correct?"
    - options: `Correct` / `Needs changes` / `Cancel build`
-   - preview: User story walkthrough — "You open [page]. You [action]. The system [response]..."
+   - preview: User story walkthrough ("You open [page]. You [action]. The system [response]...") followed by V4+ scripts verbatim if `## Verification` exists.
 6. If "Correct" → Finalize
 7. If "Needs changes" → read feedback, adjust spec, re-ask (max 2 loops)
 8. If "Cancel" → return `{slug}: CANCELLED`

@@ -17,9 +17,9 @@ Use in Phase B (Trivial) and Phase C (Standard). Write to `.workflow/resolve/{sl
 # Diagnosis: {One-Line Bug Summary}
 
 Status: INVESTIGATING
-Severity: {TRIVIAL | STANDARD | VAGUE}
+Severity: {TRIVIAL | STANDARD | VAGUE | REDIRECT}
 Fix Type: {code | infra | config | manual}
-Outcome: {fixed | diagnosed | instructions | cancelled}
+Outcome: {fixed | diagnosed | instructions | cancelled | redirect}
 Committed: {yes | no}
 Slug: {slug}
 
@@ -183,6 +183,7 @@ R2: {Alternative path, if applicable}
 - **STANDARD** -- Phase C single-hypothesis resolution (1-3 files, pattern match or freelance)
 - **COMPLEX** -- Phase D deep investigation (browser bugs, intermittent, strike #3 escalation, or user-requested)
 - **VAGUE** -- terminal state, bug report too vague and user cancelled (or strike-3 abort)
+- **REDIRECT** -- terminal state, request detected as feature (not bug); orchestrator routes to `/build`
 
 ## Fix Type Values
 
@@ -197,6 +198,7 @@ R2: {Alternative path, if applicable}
 - **diagnosed** -- normal flow, `Fix Type: code`. Orchestrator proceeds to verify → fix → certify.
 - **instructions** -- `Fix Type != code`, OR strike-3 abort. Orchestrator reads `## Suggested Fix` and reports to user, no commit.
 - **cancelled** -- `Severity: VAGUE`, user cancelled at vague gate. Orchestrator reports, no commit.
+- **redirect** -- `Severity: REDIRECT`, request is a feature not a bug. Orchestrator cleans up and invokes `/build`. No commit.
 
 ## Committed Values
 

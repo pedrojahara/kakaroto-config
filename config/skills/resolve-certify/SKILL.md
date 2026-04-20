@@ -68,12 +68,13 @@ If **FAIL**: This should not happen (resolve-fix should have left things passing
 - Footer: `<!-- GATE_QUESTION: verify.sh failed 2x. How should I proceed? -->` `<!-- GATE_OPTIONS: Retry with guidance | Skip pre-check | Abort -->` `<!-- GATE_STEP: 1 -->`
 - Return `{slug}: GATE`
 
-## Step 2: Quality Agents (COMPLEX only)
+## Step 2: Quality Agents (by Severity)
 
-Read `Severity` from diagnosis.
+Read `Severity` from diagnosis. Quality coverage scales with risk:
 
-- **TRIVIAL/STANDARD:** Skip quality agents. verify.sh (Step 1) is sufficient.
-- **COMPLEX:** Read `.workflow/resolve/{slug}/fix-notes.md` for hotspots and concerns. Run sequentially:
+- **TRIVIAL (Phase B, 1-line fix):** skip quality agents. verify.sh (Step 1) + the regression test written in B.2 are sufficient.
+- **STANDARD (Phase C, 1-3 files):** read `.workflow/resolve/{slug}/fix-notes.md` for files changed. Run `Task(code-reviewer)` only, focused on correctness/security: "Focus review on these files for the diagnosed root cause: {files changed from fix-notes}". Skip `code-simplifier` — the diff is small; optimization yield is low and verify.sh already covers basics.
+- **COMPLEX (Phase D):** read `.workflow/resolve/{slug}/fix-notes.md` for hotspots and concerns. Run sequentially:
   1. `Task(code-simplifier)` -- "Focus review on these files and concerns: {files changed + concerns from fix-notes}"
   2. `Task(code-reviewer)` -- "Focus review on these files and concerns: {files changed + concerns from fix-notes}"
 
@@ -93,7 +94,7 @@ Re-invoke code-reviewer. If same issues persist after 2 fix cycles, escalate via
 
 **Iron Law: "Code changed since last verification → Test again. Confidence is not evidence."**
 
-If any quality agent modified code in Step 2 (COMPLEX only), re-verify and re-commit before deploying:
+If any quality agent modified code in Step 2 (STANDARD or COMPLEX), re-verify and re-commit before deploying:
 
 ```bash
 bash .workflow/build/verify.sh resolve-{slug}

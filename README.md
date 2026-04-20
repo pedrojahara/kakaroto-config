@@ -37,28 +37,30 @@ The installer will detect the existing `.claude/` folder and ask if you want to 
 ├── CLAUDE.md              # Global rules (autonomy, coding standards)
 ├── ARCHITECTURE.md        # Full documentation of the system
 ├── skills/                # Skill workflows (invoked via /skill)
-│   ├── build/SKILL.md         # /build orchestrator
-│   ├── build-understand/      # Phase: requirements (handles plan files too)
-│   ├── build-verify/          # Phase: QA verification design
-│   ├── build-implement/       # Phase: autonomous implementation
-│   ├── build-certify/         # Phase: quality + deploy + prod verification
-│   ├── resolve/SKILL.md       # /resolve orchestrator
-│   ├── resolve-investigate/   # Phase: diagnosis + QA reproduction
-│   ├── resolve-verify/        # Phase: user reviews diagnosis + QA flows
-│   ├── resolve-fix/           # Phase: autonomous fix + local QA
-│   ├── resolve-certify/       # Phase: deploy + production QA
-│   └── deliberate/            # /deliberate - adversarial solution design
+│   ├── build/SKILL.md           # /build orchestrator (3 phases)
+│   ├── build-understand/        # Phase: requirements + plan-file handling + V4+ approval
+│   ├── build-implement/         # Phase: autonomous implementation (+ verify-template.md)
+│   ├── build-certify/           # Phase: quality + deploy + prod verification
+│   ├── resolve/SKILL.md         # /resolve orchestrator
+│   ├── resolve-investigate/     # Phase: diagnosis + QA reproduction (+ REDIRECT to /build)
+│   ├── resolve-verify/          # Phase: user reviews diagnosis + QA flows
+│   ├── resolve-fix/             # Phase: autonomous fix + local QA
+│   ├── resolve-certify/         # Phase: quality + deploy + production QA
+│   └── deliberate/              # /deliberate - adversarial solution design
 ├── commands/              # Commands (invoked via /command)
 │   └── gate.md            # /gate - quality gate before PR
-├── hooks/                 # Lifecycle hooks (8 total)
-│   ├── build-stop-guard.sh       # Prevents stop during active workflow
-│   ├── build-continuity-hook.sh  # Injects next action between phases
-│   ├── build-skill-register.sh   # Claims session ownership
-│   ├── build-session-recovery.sh # Detects and resumes stalled workflows
-│   ├── build-implement-stop.sh   # Enforces verify.sh for agents
-│   ├── ask-user-empty-guard.sh   # Rejects empty AskUserQuestion responses
-│   ├── pre-commit-gate.sh        # Quality checks before git commit
-│   └── stop-quality-check.sh     # Quality checks before session stop
+├── hooks/                 # Lifecycle hooks (10 total)
+│   ├── _lib.sh                      # Shared helpers
+│   ├── build-stop-guard.sh          # Prevents stop during active workflow
+│   ├── build-continuity-hook.sh     # Injects next action between phases
+│   ├── build-skill-register.sh      # Claims session ownership
+│   ├── build-session-recovery.sh    # Detects and resumes stalled workflows
+│   ├── build-implement-stop.sh      # Enforces verify.sh for agents
+│   ├── ask-user-empty-guard.sh      # Rejects empty AskUserQuestion responses
+│   ├── pre-commit-gate.sh           # Quality checks before git commit
+│   ├── stop-quality-check.sh        # Quality checks before session stop
+│   ├── permission-denied-log.sh     # Logs permission denials for review
+│   └── pre-compact-save.sh          # Preserves workflow state before auto-compaction
 └── agents/                # 8 specialized agents
     ├── build-implementer.md
     ├── resolve-fixer.md
@@ -75,8 +77,8 @@ The installer will detect the existing `.claude/` folder and ask if you want to 
 | Name          | Type    | Trigger                             | Description                                                                                         |
 | ------------- | ------- | ----------------------------------- | --------------------------------------------------------------------------------------------------- |
 | `/deliberate` | Skill   | Manual                              | Adversarial solution designer: challenges framing, simulates scenarios as temporal narratives       |
-| `/build`      | Skill   | "adicionar", "implementar", "criar" | Full feature workflow: understand -> verify -> implement -> certify. Accepts plan files (.md paths) |
-| `/resolve`    | Skill   | "bug", "erro", "problema"           | Bug resolution: investigate -> verify -> fix -> certify                                             |
+| `/build`      | Skill   | "adicionar", "implementar", "criar" | Full feature workflow: understand -> implement -> certify. Accepts plan files (.md paths)           |
+| `/resolve`    | Skill   | "bug", "erro", "problema"           | Bug resolution: investigate -> verify -> fix -> certify (auto-redirects feature requests to /build) |
 | `/gate`       | Command | Manual                              | Run quality agents before PR                                                                        |
 
 ### Workflow Chain
@@ -84,25 +86,28 @@ The installer will detect the existing `.claude/` folder and ask if you want to 
 ```
 /deliberate (optional) Solution design: challenge framing, scenarios, refinement
    |
-/build                 Implementation: spec -> verify -> code -> certify
+/build                 Implementation: spec -> implement -> certify
 ```
 
 ```
-/resolve               Autonomous bug fix: diagnose -> verify -> fix -> certify
+/resolve               Autonomous bug fix: investigate -> verify -> fix -> certify
+                       (Feature requests are auto-redirected to /build)
 ```
 
 ## Agents (Subagents)
 
-| Agent                  | Model | Blocking | Purpose                                                     |
-| ---------------------- | ----- | -------- | ----------------------------------------------------------- |
-| `build-implementer`    | opus  | yes      | Autonomous implementation from spec, codes until tests pass |
-| `resolve-fixer`        | opus  | yes      | Autonomous bug fix, codes until QA flows pass               |
-| `code-reviewer`        | opus  | yes      | Security, types, bugs                                       |
-| `test-fixer`           | opus  | yes      | Runs tests, fixes failures, creates missing tests           |
-| `code-simplifier`      | opus  | no       | Clarity, DRY, patterns                                      |
-| `functional-validator` | opus  | yes      | Validates UI with Playwright (auto-triggered on .tsx/.css)  |
-| `terraform-validator`  | opus  | yes      | Validates env vars and Terraform consistency                |
-| `memory-sync`          | opus  | no       | Syncs knowledge to MCP Memory                               |
+| Agent                  | Model | Blocking | Purpose                                                                        |
+| ---------------------- | ----- | -------- | ------------------------------------------------------------------------------ |
+| `build-implementer`    | opus  | yes      | Autonomous implementation from spec, codes until verify.sh passes              |
+| `resolve-fixer`        | opus  | yes      | Autonomous bug fix, codes until QA flows pass                                  |
+| `code-reviewer`        | opus  | yes      | Security, types, bugs, AC gaps (diff-only scope, confidence-based auto-fix)    |
+| `code-simplifier`      | opus  | no       | Clarity, DRY (rule-of-3 + knowledge-vs-char), patterns (NÃO-TOCAR error paths) |
+| `test-fixer`           | opus  | yes      | Runs tests, fixes failures, creates missing tests                              |
+| `functional-validator` | opus  | yes      | Validates UI with Playwright (auto-triggered on .tsx/.css)                     |
+| `terraform-validator`  | opus  | yes      | Validates env vars and Terraform consistency                                   |
+| `memory-sync`          | opus  | no       | Syncs knowledge to MCP Memory                                                  |
+
+All agents emit a standardized trailing `---AGENT_RESULT---` block consumed by orchestrators (`STATUS` / `ISSUES_FOUND` / `ISSUES_FIXED` / `BLOCKING`). `ISSUES_FIXED` only counts when `npx tsc --noEmit` + `npm run test` actually verified the fix (fail-safe).
 
 ## Hooks
 
@@ -116,6 +121,8 @@ The installer will detect the existing `.claude/` folder and ask if you want to 
 | `build-implement-stop.sh`   | Stop (agent)          | Enforces verify.sh for build-implementer agent        |
 | `build-session-recovery.sh` | SessionStart          | Detects stalled workflows, offers resume              |
 | `ask-user-empty-guard.sh`   | PostToolUse (AskUser) | Rejects empty/blank responses                         |
+| `permission-denied-log.sh`  | PermissionDenied      | Logs denied tool calls for later review               |
+| `pre-compact-save.sh`       | PreCompact            | Preserves workflow state across auto-compaction       |
 
 ## Philosophy
 
@@ -166,9 +173,9 @@ User: "/deliberate como resolver o problema de cache"
          |
 Claude triggers /deliberate
          |
-Move 1: Challenge the frame (hidden assumptions)
+Move 1: Challenge the frame (hidden assumptions + REDIRECT gate for trivial/bug)
 Move 2: Simulate 5+ scenarios as temporal narratives (Dia 1 -> Mes 6)
-Move 3: Pre-mortem + collaborative refinement
+Move 3: Pre-mortem + collaborative refinement (max 3 rounds)
          |
 Saves deliberation with /build command ready
 ```
@@ -180,10 +187,9 @@ User: "adiciona filtro de data na listagem"
          |
 Claude automatically triggers /build
          |
-build-understand -> Aligns on WHAT to build (user approval gate)
-build-verify     -> Coverage baseline + QA test script design (user approval gate)
-build-implement  -> Autonomous implementation + test coverage check until verify.sh passes
-certify          -> Quality agents + deploy + production verification
+build-understand -> Interview + spec + V4+ approval gate (plan files skip interview)
+build-implement  -> Autonomous implementation + verify.sh (V1-V3) + V4+ if present
+build-certify    -> Quality agents (reviewer-first in COMPLEX) + commit + deploy + prod V4+
          |
 Done
 ```
@@ -195,10 +201,10 @@ User: "erro ao salvar formulario"
          |
 Claude automatically triggers /resolve
          |
-resolve-investigate -> Diagnoses root cause + QA reproduction flows
+resolve-investigate -> Diagnosis + QA reproduction flows (REDIRECTs if feature request)
 resolve-verify      -> User reviews diagnosis + approves QA flows
 resolve-fix         -> Autonomous fix + regression test + local QA verification
-resolve-certify     -> Quality agents + deploy + production QA
+resolve-certify     -> Quality agents (simplifier-first in COMPLEX) + deploy + production QA
          |
 Done (trivial bugs skip directly from investigate)
 ```
@@ -229,7 +235,7 @@ Without this section, certify runs quality agents and commits but skips deploy a
 
 ## Requirements
 
-- Claude Code CLI
+- Claude Code CLI (Opus 4.7 recommended; prompts are tuned for 4.7 literal-interpretation behaviour)
 - MCP Memory server (optional, for knowledge persistence)
 - Playwright MCP (optional, for functional validation)
 - Sequential Thinking MCP (optional, for /deliberate)
@@ -258,12 +264,12 @@ This command will:
 - `skills/` (build, resolve, deliberate workflows)
 - `commands/` (gate)
 - `agents/` (all 8 subagents)
-- `hooks/` (8 lifecycle hooks)
-- `templates/` (if present)
+- `hooks/` (10 lifecycle hooks)
 
 **Files excluded:**
 
-- Session data (`plans/`, `specs/`, `interviews/`, etc.)
+- Session data (`.workflow/plans/`, `.workflow/build/`, `.workflow/resolve/`, etc.)
+- Audit artefacts (`.workflow/build-audit/`, `.workflow/resolve-audit/`, `.workflow/deliberate-audit/`, `.workflow/quality-audit/`)
 - Personal files not present in source are simply not synced
 
 ## License

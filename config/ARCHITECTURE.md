@@ -8,26 +8,30 @@
 ├── commands/           (invocados via /command)
 │   └── gate.md
 ├── skills/             (invocados via /skill, context fork)
-│   ├── build/SKILL.md            (orquestrador)
-│   ├── build-understand/SKILL.md (+ spec-template.md)
-│   ├── build-verify/SKILL.md     (+ verify-template.md)
-│   ├── build-implement/SKILL.md
-│   ├── build-certify/SKILL.md    (quality + deploy + prod verification)
-│   ├── resolve/SKILL.md          (orquestrador)
-│   ├── resolve-investigate/SKILL.md (+ diagnosis-template.md)
-│   ├── resolve-verify/SKILL.md   (user reviews diagnosis + QA flows)
+│   ├── build/SKILL.md                  (orquestrador - 4 fases)
+│   ├── build-understand/SKILL.md       (+ spec-template.md; PLAN MODE + V4+ approval)
+│   ├── build-implement/SKILL.md        (+ verify-template.md; effort xhigh)
+│   ├── build-certify/SKILL.md          (quality agents + deploy + prod verification)
+│   ├── resolve/SKILL.md                (orquestrador)
+│   ├── resolve-investigate/SKILL.md    (+ diagnosis-template.md; REDIRECT -> /build)
+│   ├── resolve-verify/SKILL.md         (user reviews diagnosis + QA flows)
 │   ├── resolve-fix/SKILL.md
-│   ├── resolve-certify/SKILL.md  (deploy + prod QA verification)
-│   └── deliberate/SKILL.md       (+ output-template.md, standalone-template.md)
+│   ├── resolve-certify/SKILL.md        (deploy + prod QA verification)
+│   └── deliberate/SKILL.md             (+ output-template.md, standalone-template.md)
 ├── hooks/
-│   ├── build-stop-guard.sh       (Stop: prevents stop during active workflow)
-│   ├── build-continuity-hook.sh  (PostToolUse Skill: injects next action)
-│   ├── build-skill-register.sh   (PreToolUse Skill: claims session ownership)
-│   ├── build-session-recovery.sh (SessionStart: detects stalled workflows)
-│   ├── build-implement-stop.sh   (Stop: enforces verify.sh --full for agents)
-│   └── ask-user-empty-guard.sh   (PostToolUse AskUserQuestion: rejects empty)
+│   ├── _lib.sh                         (helpers compartilhados)
+│   ├── build-stop-guard.sh             (Stop: bloqueia stop durante workflow ativo)
+│   ├── build-continuity-hook.sh        (PostToolUse Skill: injeta próximo Skill)
+│   ├── build-skill-register.sh         (PreToolUse Skill: claims session ownership)
+│   ├── build-session-recovery.sh       (SessionStart: detecta workflow stalled)
+│   ├── build-implement-stop.sh         (Stop agent: enforce verify.sh --full)
+│   ├── ask-user-empty-guard.sh         (PostToolUse AskUser: rejeita resposta vazia)
+│   ├── pre-commit-gate.sh              (PreToolUse Bash: format + type-check + tests)
+│   ├── stop-quality-check.sh           (Stop: quality gate antes de parar sessão)
+│   ├── permission-denied-log.sh        (PermissionDenied: registra bloqueios de permissão)
+│   └── pre-compact-save.sh             (PreCompact: preserva estado antes de compactação)
 ├── agents/             (invocados via Task tool, 8 total)
-│   ├── code-reviewer, test-fixer, code-simplifier
+│   ├── code-reviewer, code-simplifier, test-fixer
 │   ├── functional-validator, terraform-validator
 │   └── build-implementer, resolve-fixer, memory-sync
 └── settings.json       (hooks config, permissions)
@@ -41,100 +45,120 @@ Projetos adicionam `projeto/.claude/commands/` para skills locais (ex: `/deploy`
 
 ### /build (Feature Development)
 
-| Fase          | Arquivo                     | Acao                                                      |
-| ------------- | --------------------------- | --------------------------------------------------------- |
-| Understand    | `build-understand/SKILL.md` | Product surface, interview, understand requirements       |
-| Verify Design | `build-verify/SKILL.md`     | Design QA-style V4+ verification scripts                  |
-| Implement     | `build-implement/SKILL.md`  | Anti-anchoring, exemplar study, `build-implementer` agent |
-| Certify       | `build-certify/SKILL.md`    | Quality agents -> deploy -> prod V4+ verification         |
+| Fase       | Arquivo                     | Ação                                                                                |
+| ---------- | --------------------------- | ----------------------------------------------------------------------------------- |
+| Understand | `build-understand/SKILL.md` | Interview + PLAN MODE detection + spec.md + V4+ approval gate                       |
+| Implement  | `build-implement/SKILL.md`  | Anti-anchoring, exemplar study, codebase invariant check, `build-implementer` agent |
+| Certify    | `build-certify/SKILL.md`    | Quality agents (reviewer-first em COMPLEX) → commit → deploy → prod V4+             |
 
-Lifecycle: `DRAFTING -> UNDERSTOOD -> VERIFIED -> BUILDING -> CERTIFYING -> DONE`
+Lifecycle: `DRAFTING → UNDERSTOOD → BUILDING → CERTIFYING → DONE`
+(VERIFIED retido apenas para specs legacy; pipeline atual termina Understand em UNDERSTOOD após V4+ approval inline.)
 
-Accepts description or `.md` plan file path (auto-detected by build-understand).
-Plan files skip the interview and confirmation gate — the plan IS the approved intent.
+Accepts description ou `.md` plan file path (auto-detectado por build-understand). Plan files pulam entrevista e gate de confirmação — o plano É o intent aprovado.
 
-Routing: CLAUDE.md detecta trigger "criar/adicionar/implementar" -> `/build`
+Quality tiers em build-certify:
+
+- **TRIVIAL**: verify.sh baseline; invoca `code-reviewer` só se diff toca padrões de segurança.
+- **STANDARD**: `code-reviewer` (correção + AC gaps).
+- **COMPLEX**: `code-reviewer` primeiro (security/bugs/AC), depois `code-simplifier` (clareza/DRY sobre código corrigido).
+
+Routing: CLAUDE.md detecta trigger "criar/adicionar/implementar" → `/build`
 
 ### /resolve (Bug Resolution)
 
-| Fase        | Arquivo                        | Acao                                                         |
-| ----------- | ------------------------------ | ------------------------------------------------------------ |
-| Investigate | `resolve-investigate/SKILL.md` | ST hipoteses, prod logs, QA reproduction flows               |
-| Verify      | `resolve-verify/SKILL.md`      | User reviews diagnosis + QA flows, generates verify.sh       |
-| Fix         | `resolve-fix/SKILL.md`         | Fix minimo + local QA verification via `resolve-fixer` agent |
-| Certify     | `resolve-certify/SKILL.md`     | Quality agents -> deploy -> prod QA verification             |
+| Fase        | Arquivo                        | Ação                                                                                                  |
+| ----------- | ------------------------------ | ----------------------------------------------------------------------------------------------------- |
+| Investigate | `resolve-investigate/SKILL.md` | Signal-driven triage + hipóteses + QA reproduction flows + REDIRECT → `/build` se for feature request |
+| Verify      | `resolve-verify/SKILL.md`      | User reviews diagnosis + QA flows; gera verify.sh                                                     |
+| Fix         | `resolve-fix/SKILL.md`         | Fix mínimo + local QA via `resolve-fixer` agent                                                       |
+| Certify     | `resolve-certify/SKILL.md`     | Quality agents (simplifier-first em COMPLEX) → deploy → prod QA                                       |
 
-Pipeline: `INVESTIGATING -> DIAGNOSED -> VERIFIED -> FIXING -> CERTIFYING -> VERIFIED_PROD`
-Trivial escape hatch: bugs >95% confidence fix+verify in Phase 1 (investigate), skips all remaining phases.
-Circuit breaker: Attempt 4 in fix -> re-investigate (max 1 cycle).
+Pipeline: `INVESTIGATING → DIAGNOSED → VERIFIED → FIXING → CERTIFYING → VERIFIED_PROD` (ou `FAILED`).
+Trivial escape hatch: bugs >95% confiança fix+verify direto em investigate (skip fases seguintes).
+Circuit breaker: Attempt 4 em fix → re-investigate (máx 1 ciclo).
 
-Routing: CLAUDE.md detecta trigger "bug/erro/problema" -> `/resolve`
+Quality tiers em resolve-certify:
 
-### /gate (Quality Gate)
+- **TRIVIAL**: skip quality agents; verify.sh + regression test da Phase B.2 são suficientes.
+- **STANDARD**: `code-reviewer` only (foco no root cause fix).
+- **COMPLEX**: `code-simplifier` primeiro, depois `code-reviewer` (ordem intencionalmente inversa a build-certify).
 
-Ordem: `test-fixer (baseline)` -> `code-simplifier` -> `test-fixer (verificacao)` -> `code-reviewer` -> `functional-validator (se UI)` -> `terraform-validator (se env)`
+Routing: CLAUDE.md detecta trigger "bug/erro/problema" → `/resolve`. Se description soar feature → REDIRECT.
+
+### /deliberate (Solution Design — Opcional)
+
+`deliberate/SKILL.md`: 3 Moves adversariais (Frame challenge → Spectrum → Pre-mortem refinement). Zero código de produção; output alimenta `/build` com `.workflow/explorations/{slug}-deliberation.md`.
+
+### /gate (Quality Gate manual)
+
+Ordem: `test-fixer (baseline) → code-simplifier (DRY) → test-fixer (verificação) → code-reviewer → functional-validator (se UI) → terraform-validator (se env)`.
 
 ---
 
 ## Agent Registry
 
-| Agent                | Modelo | Blocking     | Proposito                                  |
-| -------------------- | ------ | ------------ | ------------------------------------------ |
-| code-reviewer        | opus   | BLOCKING     | Seguranca, tipagem, bugs                   |
-| test-fixer           | opus   | BLOCKING     | Rodar/corrigir/criar testes                |
-| code-simplifier      | opus   | non-blocking | Clareza, DRY, padroes                      |
-| functional-validator | opus   | BLOCKING     | Playwright smoke tests em UI               |
-| terraform-validator  | opus   | BLOCKING     | Consistencia env vars / .tf                |
-| build-implementer    | opus   | BLOCKING     | Implementacao autonoma ate testes passarem |
-| resolve-fixer        | opus   | BLOCKING     | Fix autonomo de bugs ate QA flows passarem |
-| memory-sync          | opus   | non-blocking | Sincroniza MCP Memory pos-workflow         |
+| Agent                | Modelo | Blocking     | Propósito                                                                        |
+| -------------------- | ------ | ------------ | -------------------------------------------------------------------------------- |
+| code-reviewer        | opus   | BLOCKING     | Segurança, tipagem, bugs, AC gaps (diff-only scope; confidence-based auto-fix)   |
+| code-simplifier      | opus   | non-blocking | Clareza, DRY (rule-of-3 + knowledge-vs-char), padrões (NÃO-TOCAR error handling) |
+| test-fixer           | opus   | BLOCKING     | Rodar/corrigir/criar testes                                                      |
+| functional-validator | opus   | BLOCKING     | Playwright smoke tests em UI (auto-trigger em _.tsx/_.css)                       |
+| terraform-validator  | opus   | BLOCKING     | Consistência env vars / .tf                                                      |
+| build-implementer    | opus   | BLOCKING     | Implementação autônoma até verify.sh passar                                      |
+| resolve-fixer        | opus   | BLOCKING     | Fix autônomo de bugs até QA flows passarem                                       |
+| memory-sync          | opus   | non-blocking | Sincroniza MCP Memory pós-workflow                                               |
 
 ---
 
 ## Agent Output Format
 
-Todos os agents retornam bloco padronizado:
+Todos os agents retornam bloco padronizado (**última saída**; nada depois):
 
 ```
 ---AGENT_RESULT---
 STATUS: PASS | FAIL
-ISSUES_FOUND: <numero>
-ISSUES_FIXED: <numero>
+ISSUES_FOUND: <número>
+ISSUES_FIXED: <número>
 BLOCKING: true | false
 ---END_RESULT---
 ```
 
-Regras: `STATUS=FAIL + BLOCKING=true` -> workflow PARA. `BLOCKING=false` -> continua com warning.
+Regras: `STATUS=FAIL + BLOCKING=true` → workflow PARA. `BLOCKING=false` → continua com warning. `ISSUES_FIXED` só incrementa quando tsc+tests verificaram o fix (fail-safe).
 
 ---
 
-## Triggers Automaticos
+## Triggers Automáticos
 
-| Condicao                          | Acao                            |
-| --------------------------------- | ------------------------------- |
-| Mudanca em `*.tsx`, `*.css`       | `functional-validator` invocado |
-| Mudanca em `.env` ou `terraform/` | `terraform-validator` invocado  |
-| Codigo novo sem teste             | `test-fixer` cria teste         |
+| Condição                          | Ação                            |
+| --------------------------------- | ------------------------------- | ---------- | ---- | --- | ----- | ------ | ---- | ----- | ------ | -------- | ---- | ---- | -------------------------------- | ----------------------------------------- |
+| Mudança em `*.tsx`, `*.css`       | `functional-validator` invocado |
+| Mudança em `.env` ou `terraform/` | `terraform-validator` invocado  |
+| Código novo sem teste             | `test-fixer` cria teste         |
 | Fim de workflow                   | `memory-sync` atualiza Memory   |
+| Diff toca `auth                   | session                         | permission | role | sql | query | crypto | sign | token | secret | sanitize | exec | eval | child_process` em TRIVIAL /build | `code-reviewer` invocado mesmo em TRIVIAL |
 
 ---
 
 ## Hooks Pipeline
 
-| Hook                        | Event                         | Funcao                                                       |
-| --------------------------- | ----------------------------- | ------------------------------------------------------------ |
-| `build-skill-register.sh`   | PreToolUse (Skill)            | Claims session ownership for build/resolve sub-skills        |
-| `build-continuity-hook.sh`  | PostToolUse (Skill)           | Injects next Skill() call, prevents narration between phases |
-| `build-stop-guard.sh`       | Stop                          | Blocks stop while workflow active; reads next-action.md      |
-| `build-implement-stop.sh`   | Stop (agent)                  | Enforces verify.sh --full for build-implementer agent        |
-| `build-session-recovery.sh` | SessionStart                  | Detects stalled workflows (30min heartbeat), offers resume   |
-| `ask-user-empty-guard.sh`   | PostToolUse (AskUserQuestion) | Rejects empty/blank responses (accidental submissions)       |
+| Hook                        | Event                         | Função                                                      |
+| --------------------------- | ----------------------------- | ----------------------------------------------------------- |
+| `build-skill-register.sh`   | PreToolUse (Skill)            | Claims session ownership para build/resolve sub-skills      |
+| `build-continuity-hook.sh`  | PostToolUse (Skill)           | Injeta próximo Skill() call; previne narração entre fases   |
+| `build-stop-guard.sh`       | Stop                          | Bloqueia stop enquanto workflow ativo; lê next-action.md    |
+| `build-implement-stop.sh`   | Stop (agent)                  | Enforce verify.sh --full para build-implementer             |
+| `build-session-recovery.sh` | SessionStart                  | Detecta workflows stalled (30min heartbeat), oferece resume |
+| `ask-user-empty-guard.sh`   | PostToolUse (AskUserQuestion) | Rejeita resposta vazia/whitespace (empty-response guard)    |
+| `pre-commit-gate.sh`        | PreToolUse (Bash)             | Auto-format + type-check + tests antes de git commit        |
+| `stop-quality-check.sh`     | Stop                          | Bloqueia stop se mudanças não verificadas                   |
+| `permission-denied-log.sh`  | PermissionDenied              | Registra bloqueios para revisão posterior                   |
+| `pre-compact-save.sh`       | PreCompact                    | Preserva estado de workflow antes da compactação automática |
 
 ---
 
 ## Project Configuration
 
-Certify skills discover deploy and auth config from the project's CLAUDE.md:
+Certify skills descobrem deploy e auth config a partir do `CLAUDE.md` do projeto:
 
 ```markdown
 ## Deploy
@@ -146,16 +170,16 @@ Certify skills discover deploy and auth config from the project's CLAUDE.md:
 
 ### Production Auth
 
-- API: `X-API-Key` header with API_KEY from .env
-- Browser: use `e2eLogin()` helper for browser tests
+- API: `X-API-Key` header com API_KEY do .env
+- Browser: use `e2eLogin()` helper
 
 ### Production Logs
 
 - `bash scripts/logs.sh`
 ```
 
-**Discovery chain:** Project CLAUDE.md `## Deploy` → Memory → skip gracefully.
-Without `## Deploy`, certify runs quality agents + commit but skips deploy and prod verification.
+Discovery chain: Project CLAUDE.md `## Deploy` → MCP Memory → skip gracefully.
+Sem `## Deploy`, certify roda quality agents + commit mas pula deploy e prod verification.
 
 ---
 
@@ -163,16 +187,13 @@ Without `## Deploy`, certify runs quality agents + commit but skips deploy and p
 
 ```bash
 # Skills globais
-/deliberate # Design de solucao (adversarial, opcional)
-/build      # Desenvolver feature (4-phase, accepts plan files)
-/resolve    # Resolver bug (4-phase: investigate -> verify -> fix -> certify)
-/gate       # Quality gate pre-PR
-
-# Skills locais (projeto/.claude/commands/)
-# /deploy, /ship, etc.
+/deliberate   # Design de solução (adversarial, opcional, zero código)
+/build        # Feature (3-fase: understand → implement → certify; aceita plano .md)
+/resolve      # Bug (4-fase: investigate → verify → fix → certify; REDIRECT se feature)
+/gate         # Quality gate manual pré-PR
 
 # Agents (via Task tool)
-# code-reviewer, test-fixer, code-simplifier,
+# code-reviewer, code-simplifier, test-fixer,
 # functional-validator, terraform-validator,
 # build-implementer, resolve-fixer, memory-sync
 ```

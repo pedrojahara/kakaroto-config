@@ -68,10 +68,12 @@ If **FAIL**: This should not happen (build-implement should have left things pas
 
 ## Step 2: Quality Agents
 
-Read `Complexity` from spec.
+Read `Complexity` from spec. Security and correctness are binary — complexity doesn't change the bar. Clarity polish can scale with scope.
 
-- **TRIVIAL / STANDARD:** Skip quality agents. verify.sh (Step 1) is sufficient. Proceed to Step 3.
-- **COMPLEX:** Read `.workflow/build/{slug}/implementation-notes.md` if it exists. Run sequentially: `Task(code-simplifier)` then `Task(code-reviewer)`. Pass to each agent: "Focus review on these files and concerns: {Hotspots + Concerns from notes}"
+- **TRIVIAL:** verify.sh (Step 1) is sufficient by default. Proceed to Step 3.
+  **Run `Task(code-reviewer)` anyway when the diff touches security-sensitive code.** Detection: `git diff | grep -Ei 'auth|session|permission|role|sql|query|crypto|sign|token|secret|sanitize|exec|eval|child_process'`. Any hit → run code-reviewer with "Spec path: `.workflow/build/{slug}/spec.md`. TRIVIAL security trigger — review the diff for injection, auth bypass, token leakage, or unsafe deserialization." Handle FAIL per the standard flow below.
+- **STANDARD:** Run ONLY `Task(code-reviewer)` for correctness/security/acceptance-criteria check. Skip code-simplifier (not worth the turn cost at this scope). Pass: "Spec path: `.workflow/build/{slug}/spec.md`. Review diff for security, bugs, typing, and spec acceptance criteria gaps."
+- **COMPLEX:** Read `.workflow/build/{slug}/implementation-notes.md` if it exists. Run sequentially: `Task(code-reviewer)` FIRST (security/bugs/spec acceptance), then `Task(code-simplifier)` (clarity polish on corrected code). This order prevents simplifier from refactoring code the reviewer is about to rewrite. Pass to each agent: "Spec path: `.workflow/build/{slug}/spec.md`. Focus review on these files and concerns: {Hotspots + Concerns from notes}."
 
 If code-reviewer returns `STATUS: FAIL`: fix the identified issues, then re-run all checks:
 

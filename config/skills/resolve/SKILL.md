@@ -43,18 +43,35 @@ If `$ARGUMENTS` is too vague to start, infer from recent git log, error logs, or
 
 2. **RECOVERY** -- Read `.workflow/resolve/{slug}/diagnosis.md`. Check `Outcome` tag FIRST (then Status):
 
-   **Outcome/Status integrity check (guardrail):** before acting on `Outcome`, verify Status is consistent. If mismatch, abort with error.
+   **Outcome/Status integrity check (guardrail):** before acting on `Outcome`, verify Status is consistent. If mismatch OR the value is unknown, emit the actionable abort below.
    - `Outcome: fixed` requires `Status: DIAGNOSED`
    - `Outcome: instructions` requires `Status: DIAGNOSED`
    - `Outcome: cancelled` requires `Status: DIAGNOSED`
+   - `Outcome: redirect` requires `Status: DIAGNOSED`
    - `Outcome: diagnosed` requires `Status: DIAGNOSED` or `VERIFIED` or `FIXING` or `CERTIFYING` or `VERIFIED_PROD`
-   - Inconsistent state → report "Outcome/Status mismatch: Outcome={X}, Status={Y}. Refusing to act." and exit without modifying anything.
+   - Unknown / missing Outcome with Status ∉ {VERIFIED_PROD, FAILED, CERTIFYING, FIXING, VERIFIED, DIAGNOSED, INVESTIGATING} → same abort.
+   - Inconsistent state → report the following to the user verbatim and exit WITHOUT modifying anything (diagnosis dir is preserved intentionally for manual inspection):
+
+     ```
+     Outcome/Status mismatch in .workflow/resolve/{slug}/diagnosis.md:
+       Outcome: {X}
+       Status:  {Y}
+
+     The diagnosis file is inconsistent and I cannot safely resume.
+
+     Next steps:
+       1. Run `git status` — resolve-fix may have left uncommitted changes.
+          If Status was FIXING, review `git diff` before deciding.
+       2. Either fix the fields in diagnosis.md manually, or
+          delete the directory to start over:  `rm -rf .workflow/resolve/{slug}/`
+     ```
 
    Then dispatch:
    - `Outcome: fixed` AND `Committed: no` -> commit, set `Committed: yes`, cleanup, report, exit
    - `Outcome: fixed` AND `Committed: yes` -> already done, cleanup, report, exit
    - `Outcome: instructions` -> report suggested fix instructions to user, cleanup, exit (no commit/verify/fix/certify)
    - `Outcome: cancelled` -> report vague-cancelled, cleanup, exit (no commit)
+   - `Outcome: redirect` -> cleanup, emit "This was a feature request, not a bug. Routing to /build." then `Skill("build", args: "{$ARGUMENTS}")`, exit
    - Else by Status:
      - `VERIFIED_PROD` -> report summary, exit
      - `FAILED` -> report failure, exit
@@ -71,10 +88,13 @@ If `$ARGUMENTS` is too vague to start, infer from recent git log, error logs, or
    - If `result` contains `GATE` -> handle per Gate Escalation below, then re-invoke investigate (max 5 gate loops)
    - If `result` contains `TRIVIAL` -> read diagnosis.md, verify `Outcome: fixed`, commit with `fix: {summary}`, set `Committed: yes`, cleanup, report, exit
    - If `result` contains `INSTRUCTIONS` -> read diagnosis.md `## Suggested Fix` section, report instructions to user verbatim, cleanup, exit (no commit)
+   - If `result` contains `REDIRECT` -> cleanup `.workflow/resolve/{slug}/`, emit to user: "This looks like a feature request, not a bug. Invoking /build.", then `Skill("build", args: "{$ARGUMENTS}")`, exit
    - If `result` contains `DIAGNOSED` -> continue to step 4
 
 4. Read diagnosis `Severity` and `Fix Type`:
+   - Valid `Severity` values: `TRIVIAL`, `STANDARD`, `COMPLEX`, `VAGUE`, `REDIRECT`. Anything else → integrity abort (same message as step 2).
    - If `Severity: VAGUE` -> report vague-cancelled, cleanup, exit (edge case: should have been caught by Outcome check)
+   - If `Severity: REDIRECT` -> edge case: already handled as REDIRECT above; if reached here, integrity abort.
    - If `Fix Type != code` -> already handled as INSTRUCTIONS above, should not reach here
    - Otherwise (STANDARD or COMPLEX with `Fix Type: code`) -> continue to step 4.5
 
@@ -136,7 +156,10 @@ After any terminal state, delete `.workflow/resolve/{slug}/` directory (diagnosi
 - `Outcome: fixed` (Phase B trivial commit done)
 - `Outcome: instructions` (non-code fix or strike-3 abort)
 - `Outcome: cancelled` (vague gate cancel)
+- `Outcome: redirect` (request was a feature, handed off to /build)
 - `FAILED` (explicit terminal failure)
+
+**Not cleaned (intentional):** Outcome/Status integrity abort. The directory is preserved so the user can inspect state and decide whether to hand-edit diagnosis.md or delete the dir themselves. The abort message (step 2) tells them how.
 
 Also delete `.workflow/build/resolve-{slug}/` if it exists (phantom dir created by certify.sh when called with resolve prefix).
 
