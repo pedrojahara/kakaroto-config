@@ -55,13 +55,11 @@ allowed-tools:
 ## Step 1: Pre-check
 
 Run verify.sh as sanity check (V1-V3 baselines only):
-
 ```bash
 bash .workflow/build/verify.sh {slug}
 ```
 
 If **FAIL**: This should not happen (build-implement should have left things passing). Investigate, fix, and re-run. If stuck after 2 attempts, escalate via gate protocol:
-
 - Write `.workflow/build/{slug}/gate-pending.md` with: what failed, error output, what you tried
 - Footer: `<!-- GATE_QUESTION: verify.sh failed 2x. How should I proceed? -->` `<!-- GATE_OPTIONS: Retry with guidance | Skip pre-check | Abort build -->` `<!-- GATE_STEP: 1 -->`
 - Return `{slug}: GATE`
@@ -76,15 +74,12 @@ Read `Complexity` from spec. Security and correctness are binary — complexity 
 - **COMPLEX:** Read `.workflow/build/{slug}/implementation-notes.md` if it exists. Run sequentially: `Task(code-reviewer)` FIRST (security/bugs/spec acceptance), then `Task(code-simplifier)` (clarity polish on corrected code). This order prevents simplifier from refactoring code the reviewer is about to rewrite. Pass to each agent: "Spec path: `.workflow/build/{slug}/spec.md`. Focus review on these files and concerns: {Hotspots + Concerns from notes}."
 
 If code-reviewer returns `STATUS: FAIL`: fix the identified issues, then re-run all checks:
-
 ```bash
 npm test -- --run
 npx tsc --noEmit
 npm run build
 ```
-
 Re-invoke code-reviewer. If same issues persist after 2 fixes, escalate via gate protocol:
-
 - Write `.workflow/build/{slug}/gate-pending.md` with: code-reviewer concerns, what you tried to fix, remaining issues
 - Footer: `<!-- GATE_QUESTION: Code reviewer issues persist after 2 fix attempts. How should I proceed? -->` `<!-- GATE_OPTIONS: Fix with guidance | Accept remaining issues | Abort build -->` `<!-- GATE_STEP: 2 -->`
 - Return `{slug}: GATE`
@@ -94,7 +89,6 @@ Re-invoke code-reviewer. If same issues persist after 2 fixes, escalate via gate
 **Iron Law: "Code changed since last verification → Test again. Confidence is not evidence."**
 
 If any quality agent modified code in Step 2, re-verify before committing:
-
 ```bash
 bash .workflow/build/verify.sh {slug}
 ```
@@ -105,80 +99,77 @@ If **FAIL**: fix the regression introduced by quality agents, re-run. Must pass 
 
 Commit all changes (conventional commits style).
 
-## Step 4: Deploy + Production Verification
+## Step 3.5: Drift Check (pre-deploy)
 
-**This step has TWO hard gates enforced by bash scripts. Both markers must exist for DONE.**
+Before calling certify.sh, scan `implementation-notes.md` for imperative infra commands that may have been applied only to dev:
 
-### 4a. Deploy via certify.sh
+```bash
+notes=".workflow/build/{slug}/implementation-notes.md"
+[ -f "$notes" ] && grep -nE '\b(gcloud|gsutil|firebase deploy|aws s3|aws iam|kubectl apply|curl -X (POST|PUT|DELETE))\b' "$notes" || true
+```
 
-Run the certify script for deploy and health check:
+For each match: read the surrounding line. Skip matches that are inside code comments, docs, or obviously scoped to local-only dev setup (e.g. `gcloud auth login`, `gcloud config set project`).
+
+If any match looks like a **mutation of shared infra** (bucket CORS/IAM/lifecycle, IAM binding, Firestore index deploy, Secret Manager put, Cloud Run env var), write `.workflow/build/{slug}/gate-pending.md`:
+
+- Body: list each imperative command with file path + line number. Include the notes context verbatim.
+- Footer:
+  - `<!-- GATE_QUESTION: {command} was run during implementation. Was it also applied to production? -->`
+  - `<!-- GATE_OPTIONS: Yes, applied to prod (proceed) | No, dev only — block and fix | Move to Terraform now -->`
+  - `<!-- GATE_STEP: 3.5 -->`
+- Return `{slug}: GATE`.
+
+If the user answers "Yes, applied to prod (proceed)": record the confirmation in notes and proceed to Step 4. If "No": block with a clear error — do NOT call certify.sh. If "Move to Terraform now": treat as fix-and-retry; user will ask you to edit terraform/*.tf in a follow-up turn.
+
+No matches → proceed.
+
+## Step 4: Deploy + Production Verification (single gate)
+
+Run the certify script. This is the **only** gate that writes the `certified` marker — it does deploy, `/health` precondition, and production V4+ verification as one atomic pipeline:
 
 ```bash
 bash .workflow/build/certify.sh {slug}
 ```
 
-This script internally:
+`certify.sh` runs, in order:
 
-1. Re-runs verify.sh locally (V1-V3 pre-check)
+1. Re-runs verify.sh locally (V1-V3)
 2. Deploys backend (+ frontend if applicable)
-3. Waits for startup + health check
-4. **Creates the `certified` marker** — proof that deploy succeeded
+3. Polls `/health` until service responds (precondition — "is the service up?", NOT the QA gate)
+4. Resolves `PROD_URL=$(cd terraform/frontend && terraform output -raw frontend_url)`
+5. Loads `E2E_TEST_EMAIL` / `E2E_TEST_PASSWORD` from `.env` (if present)
+6. Deletes the implement-phase `v4-passed` marker
+7. Runs `BASE_URL=$PROD_URL node .workflow/build/{slug}/v4-runner.mjs`
+8. On success: writes fresh `v4-passed` (prod timestamp) AND `certified`
+9. On failure at ANY step: exits non-zero without writing markers
 
-If deploy is not needed (no terraform/deploy.sh), use `--skip-deploy`:
+If spec has no `## Verification` or marks `Verification-Mode: local-only`, steps 4-7 are skipped (runner is not invoked) — `certified` is written right after `/health`.
 
+If deploy is not needed (no `terraform/deploy.sh`), use `--skip-deploy`:
 ```bash
 bash .workflow/build/certify.sh {slug} --skip-deploy
 ```
 
-If certify.sh **FAIL**: read the error output, fix the issue, re-commit if needed, re-run certify.sh. If the same approach fails twice, escalate via gate protocol:
-
-- Write `.workflow/build/{slug}/gate-pending.md` with: deploy error, what you tried
-- Footer: `<!-- GATE_QUESTION: Deploy failed twice. How should I proceed? -->` `<!-- GATE_OPTIONS: Fix with guidance | Skip deploy | Abort build -->` `<!-- GATE_STEP: 4 -->`
+If certify.sh **FAIL**: read the error output — the script tells you exactly which stage failed. Fix the issue, re-commit if needed, re-run certify.sh. If the same approach fails twice, escalate via gate protocol:
+- Write `.workflow/build/{slug}/gate-pending.md` with: stage that failed, error output, what you tried
+- Footer: `<!-- GATE_QUESTION: certify.sh failed twice at stage {X}. How should I proceed? -->` `<!-- GATE_OPTIONS: Fix with guidance | Skip deploy | Abort build -->` `<!-- GATE_STEP: 4 -->`
 - Return `{slug}: GATE`
 
-### 4b. Production V4+ verification
+**Hard rule:** NEVER hand-touch `certified` or `v4-passed`. Only `certify.sh` writes them. If a marker is missing, the pipeline is telling you prod is broken.
 
-**Skip if spec has NO `## Verification` section.** Create v4-passed marker and proceed to 4c.
+### 4b. Final audit
 
-**Production Auth Discovery (in order, stop at first match):**
-
-1. **Project CLAUDE.md:** Read the project's CLAUDE.md. Look for `## Deploy` section — it contains deploy commands, production URL, auth method, and log querying instructions.
-2. **Memory:** Search `mcp__memory__search_nodes({ query: "production-testing" })` for supplementary auth context.
-3. **If neither found:** Skip production V4+ verification. Write to implementation-notes.md: "Production verification skipped — no deploy config found. Add a `## Deploy` section to project CLAUDE.md." Create v4-passed marker and proceed to Step 5.
-
-After certify.sh succeeds (the `certified` marker now exists):
-
-1. Delete the implement-phase v4-passed marker to ensure fresh production verification:
-   ```bash
-   rm -f ".workflow/build/{slug}/v4-passed"
-   ```
-2. Read the spec's `## Verification` section
-3. For API-verifiable flows: use the discovered auth method against the production URL
-4. For UI-only flows: use discovered auth; write a standalone Playwright script if browser verification is needed
-5. Verify expected results — execute both **steps** and **checks**:
-   - After completing each V4+ flow's steps, run its checks (same DSL as build-implement):
-     - `console: no-errors` → `browser_console_messages()` → fail if any error-level entries
-     - `url: contains "X"` → `browser_evaluate({ script: "location.href.includes('X')" })` → fail if false
-     - `text: visible "X"` → `browser_evaluate({ script: "document.body.innerText.includes('X')" })` → fail if false
-     - `text: not-visible "X"` → `browser_evaluate({ script: "!document.body.innerText.includes('X')" })` → fail if false
-     - `state: no-loading` → `browser_evaluate({ script: "!document.querySelector('.spinner, .loading, [aria-busy=\"true\"]')" })` → fail if false
-   - If ANY check fails → the V4+ flow FAILS in production. Investigate, hotfix, re-deploy.
-
-### 4c. Final gate
-
-After all V4+ pass (or if skipped), create the V4 marker and run the final gate:
-
+After certify.sh succeeds, run the final audit:
 ```bash
-date -u '+%Y-%m-%dT%H:%M:%SZ' > ".workflow/build/{slug}/v4-passed"
 bash .workflow/build/verify.sh {slug} --full
 ```
 
-**`verify.sh --full` requires BOTH markers:**
+**`verify.sh --full` requires:**
+- `v4-runner.mjs` exists (spec has `## Verification` → runner is a mandatory artifact)
+- `certified` marker exists (proves full pipeline, including prod V4+, succeeded)
+- `v4-passed` marker exists (fresh prod timestamp from certify.sh, or local-only if opted out)
 
-- `certified` — created by certify.sh (bash), proves deploy ran
-- `v4-passed` — created by you after V4+ verification
-
-If either marker is missing, verify.sh will FAIL — blocking DONE. NEVER create the `certified` marker yourself; only certify.sh creates it.
+If this fails, do NOT set Status to DONE — certify.sh lied about success or artifacts drifted.
 
 ## Step 5: Wrap Up
 

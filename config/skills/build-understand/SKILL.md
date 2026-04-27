@@ -89,13 +89,11 @@ Return `{slug}: UNDERSTOOD` or `{slug}: CANCELLED` — **STOP. Do NOT proceed to
 **Phase 1 gate — BLOCKING. Fill with evidence, not claims. Scales with scope:**
 
 Always required:
-
 - Intent check → keyword scan result (if bug signals matched, you already returned REDIRECT and are not here)
 - Workflow artifacts → Glob result of `.workflow/explorations/` and `.workflow/plans/`, or "none"
 - Prior art → closest file path, or "confirmed absent after searching {paths}"
 
 Additionally required unless the request is a one-file / one-line change (cosmetic text, simple rename, single-line config):
-
 - Conversation decisions → bullet list of prior-turn decisions, or "no prior session context"
 - Memory query string used
 - Glob/Grep evidence → list every `(pattern, hit_count)` pair from step 7a; if all zero, list the patterns tried
@@ -111,12 +109,12 @@ Additionally required unless the request is a one-file / one-line change (cosmet
 
 Based on input clarity AND codebase exploration:
 
-| Signal    | TRIVIAL                          | STANDARD                             | COMPLEX                                 |
-| --------- | -------------------------------- | ------------------------------------ | --------------------------------------- |
-| Scope     | 1-2 files, single concern        | 3-5 files, clear boundaries          | 5+ files or cross-cutting               |
-| Pattern   | Exact pattern exists in codebase | Similar patterns exist               | No clear pattern / new architecture     |
-| Ambiguity | Zero — one valid interpretation  | Low — minor gaps inferable from code | High — multiple valid approaches        |
-| Risk      | Cosmetic / config / mechanical   | Logic change, bounded blast radius   | Data impact, security, breaking changes |
+| Signal | TRIVIAL | STANDARD | COMPLEX |
+|--------|---------|----------|---------|
+| Scope | 1-2 files, single concern | 3-5 files, clear boundaries | 5+ files or cross-cutting |
+| Pattern | Exact pattern exists in codebase | Similar patterns exist | No clear pattern / new architecture |
+| Ambiguity | Zero — one valid interpretation | Low — minor gaps inferable from code | High — multiple valid approaches |
+| Risk | Cosmetic / config / mechanical | Logic change, bounded blast radius | Data impact, security, breaking changes |
 
 **Classification procedure:** Rate each row independently (T/S/C). Final classification = the HIGHEST rating across all four rows. A single C in any row → COMPLEX. A single S in any row → at least STANDARD. Document ratings inline:
 
@@ -127,14 +125,12 @@ Based on input clarity AND codebase exploration:
 Evaluate whether you have enough information to write the spec:
 
 **ACT without asking when ALL true:**
-
 - Single valid interpretation of the request
 - Codebase provides sufficient context (patterns, conventions, types)
 - No business logic decisions that can't be inferred from code
 - Change is reversible (no data migrations, no external API contracts)
 
 **ASK when ANY true:**
-
 - Request is genuinely ambiguous (different interpretations → fundamentally different implementations)
 - Business logic decision required that code doesn't answer
 - High-risk change (data model, security, external contracts)
@@ -199,7 +195,7 @@ Think like a human QA tester: what would convince a skeptical user this works?
 ```
 V4: {Test name}
   - steps:
-    1. Open [page/URL]
+    1. Open {BASE_URL}/[path]
     2. Click [button/element]
     3. Fill [field] with [value]
     4. Verify [expected result visible on screen]
@@ -211,15 +207,39 @@ V4: {Test name}
     - state: no-loading
 ```
 
-Every step must be a concrete, observable action. Checks are deterministic safety nets executed via `browser_evaluate` after the LLM completes all steps.
+**URL placeholder rule:** every step that opens a page MUST use the literal placeholder `{BASE_URL}` (e.g. `Open {BASE_URL}/musicas`). NEVER hardcode `http://localhost:3001` or the production domain. The `v4-runner.mjs` generated in build-implement resolves `{BASE_URL}` from the env var `BASE_URL` (defaults to `http://localhost:3001`); `certify.sh` re-invokes the same runner with `BASE_URL=<prod>`. One script, two environments, zero divergence.
 
-| Check Type              | Syntax        | What it verifies                      |
-| ----------------------- | ------------- | ------------------------------------- |
-| `console: no-errors`    | Fixed         | No error-level console messages       |
-| `url: contains "X"`     | Parameterized | Current URL includes string X         |
-| `text: visible "X"`     | Parameterized | Page text contains X                  |
-| `text: not-visible "X"` | Parameterized | Page text does NOT contain X          |
-| `state: no-loading`     | Fixed         | No spinners/loading indicators active |
+**Fixtures rule:** any file path referenced in steps (e.g. an upload) MUST be a relative path under `.workflow/build/{slug}/fixtures/`. NEVER a user-home absolute path (`/Users/.../Downloads/...`). If the user provides an example file, note its location so build-implement can copy it into `fixtures/` with a stable name.
+
+**Auth rule:** if any V4+ flow requires a logged-in user, state it explicitly in the spec (`Pre-condition: authenticated user via e2eLogin()`). This triggers the credentials gate in Phase 3.
+
+Every step must be a concrete, observable action. Checks are deterministic safety nets executed via `browser_evaluate` after the runner completes all steps.
+
+### Credentials gate (COMPLEX + UI + auth required)
+
+When the V4+ draft requires authenticated flows, check for E2E credentials before locking the spec:
+
+```bash
+grep -E '^E2E_TEST_(EMAIL|PASSWORD)=' .env 2>/dev/null | wc -l
+```
+
+If the count is less than 2 (both missing or only one present) → call `AskUserQuestion` ONCE:
+
+- question: "V4+ precisam autenticar em prod via Firebase. `E2E_TEST_EMAIL` e/ou `E2E_TEST_PASSWORD` estão ausentes no `.env`. Como proceder?"
+- options:
+  - `Tenho credenciais — vou adicionar ao .env agora` — build prossegue; user adds before Phase certify runs
+  - `Pular V4+ em prod (só local)` — spec grava `Verification-Mode: local-only`; certify.sh não roda V4+ prod
+  - `Cancel build` — return `{slug}: CANCELLED`
+
+Record the resolution in `## Decisions Made`.
+
+| Check Type | Syntax | What it verifies |
+|------------|--------|-----------------|
+| `console: no-errors` | Fixed | No error-level console messages |
+| `url: contains "X"` | Parameterized | Current URL includes string X |
+| `text: visible "X"` | Parameterized | Page text contains X |
+| `text: not-visible "X"` | Parameterized | Page text does NOT contain X |
+| `state: no-loading` | Fixed | No spinners/loading indicators active |
 
 ---
 

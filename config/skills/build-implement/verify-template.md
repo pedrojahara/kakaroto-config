@@ -45,12 +45,18 @@ if [ "$FULL" = "--full" ]; then
   SPEC=".workflow/build/${SLUG}/spec.md"
   if [ -f "$SPEC" ] && grep -qE '^V[4-9]:|^V[1-9][0-9]+:' "$SPEC"; then
     echo "=== V4+: QA Gate ===" >&2
-    if [ -f ".workflow/build/${SLUG}/v4-passed" ]; then
+    RUNNER=".workflow/build/${SLUG}/v4-runner.mjs"
+    if [ ! -f "$RUNNER" ]; then
+      echo "  FAIL — V4+ verifications in spec but runner missing at $RUNNER" >&2
+      echo "  build-implement must emit a standalone Playwright runner for every ## Verification spec" >&2
+      FAILED=1
+    elif [ -f ".workflow/build/${SLUG}/v4-passed" ]; then
       echo "  PASS" >&2
     else
-      echo "  FAIL — V4+ verifications in spec but marker not found" >&2
-      echo "  Run all V4+ flows via Playwright MCP, then:" >&2
-      echo "    date -u > .workflow/build/${SLUG}/v4-passed" >&2
+      echo "  FAIL — V4+ runner exists but v4-passed marker missing" >&2
+      echo "  Run the runner locally first:" >&2
+      echo "    BASE_URL=http://localhost:3001 node $RUNNER" >&2
+      echo "  Then for prod verification use certify.sh (which re-runs with BASE_URL=<prod>)." >&2
       FAILED=1
     fi
   fi
@@ -63,4 +69,4 @@ exit $FAILED
 
 1. **Slug parameter** — verify.sh receives `{slug}` as first argument
 2. **Baseline is fixed** — V1 (tests), V2 (tsc), V3 (build) are always present, never removed
-3. **V4+ gate** — `--full` flag adds a gate that checks for a `v4-passed` marker file. Without `--full`, only V1-V3 run. build-implement uses default (no flag); build-certify uses `--full` as final gate after running V4+ via Playwright
+3. **V4+ gate** — `--full` flag adds a gate that checks for the `v4-runner.mjs` artifact, the `certified` marker, and the `v4-passed` marker. Without `--full`, only V1-V3 run. build-implement uses default (no flag); certify.sh uses `--full` as final gate after running the runner against prod

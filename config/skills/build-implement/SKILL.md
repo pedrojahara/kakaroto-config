@@ -64,30 +64,53 @@ After V1-V3 pass, check whether V4+ tests exist in the spec:
 
 ### If spec has `## Verification` section with V4+ tests:
 
-Execute ALL V4+ tests. The Stop hook will BLOCK you from finishing until the v4-passed marker exists.
+**Hard contract: you MUST emit `.workflow/build/{slug}/v4-runner.mjs` as a standalone Playwright script.** The same script runs locally now AND in certify.sh against production — zero divergence between environments. No MCP Playwright orchestration in this phase.
 
-1. Ensure dev server is running on port 3001
-2. For each V4+ test in the spec's `## Verification` section:
-   a. Execute the **steps** using Playwright MCP tools against `http://localhost:3001`
-   b. After completing all steps, execute the **checks** (if present):
-   - `console: no-errors` → `browser_console_messages()` → fail if any error-level entries
-   - `url: contains "X"` → `browser_evaluate({ script: "location.href.includes('X')" })` → fail if false
-   - `text: visible "X"` → `browser_evaluate({ script: "document.body.innerText.includes('X')" })` → fail if false
-   - `text: not-visible "X"` → `browser_evaluate({ script: "!document.body.innerText.includes('X')" })` → fail if false
-   - `state: no-loading` → `browser_evaluate({ script: "!document.querySelector('.spinner, .loading, [aria-busy=\"true\"]')" })` → fail if false
-     c. If ANY check fails → the V4+ flow FAILS, even if your prose interpretation said it looked correct. Fix the issue and re-run.
-3. After ALL V4+ pass (steps + checks), create the marker:
+1. **Prepare fixtures.** If any V4+ step references a file path, copy the file into `.workflow/build/{slug}/fixtures/` with a stable name and update the runner to reference the relative fixture path. Never bake user-home paths (`/Users/...`) into the runner.
+
+2. **Write the runner.** Generate `.workflow/build/{slug}/v4-runner.mjs` with:
+   - `import { chromium } from 'playwright'` and run headless by default
+   - `const BASE_URL = process.env.BASE_URL || 'http://localhost:3001'`
+   - If spec has `Pre-condition: authenticated user via e2eLogin()`: reuse the project's auth helper. For social-medias specifically, that's `tests/e2e/helpers/auth.ts` → runner must be invoked with `npx tsx .workflow/build/{slug}/v4-runner.mjs` (rename to `.ts` if your project uses tsx) so the TS helper import resolves. The runner calls `e2eLogin(page)` after `page.goto(BASE_URL)` and before the first V4+ scenario. Reads `E2E_TEST_EMAIL` / `E2E_TEST_PASSWORD` from the process env (certify.sh loads them from `.env`).
+   - One async function per V4+ scenario, named `scenarioV4()`, `scenarioV5()`, etc.
+   - Each scenario implements the spec's steps verbatim, then runs the checks via `page.evaluate()` mapped to the same DSL:
+     - `console: no-errors` → collect `console` events with level `error`; fail if any.
+     - `url: contains "X"` → `page.evaluate(() => location.href.includes('X'))`
+     - `text: visible "X"` → `page.evaluate(() => document.body.innerText.includes('X'))`
+     - `text: not-visible "X"` → `page.evaluate(() => !document.body.innerText.includes('X'))`
+     - `state: no-loading` → `page.evaluate(() => !document.querySelector('.spinner, .loading, [aria-busy="true"]'))`
+   - Main block runs scenarios in order; exit 0 if all pass, exit 1 on any failure with a stderr trace.
+   - Trace format: `[v4-runner] {scenario}: {step|check} — {PASS|FAIL: <why>}`
+
+3. **Run the runner locally.** Ensure dev server is up on port 3001, then:
+   ```bash
+   BASE_URL=http://localhost:3001 node .workflow/build/{slug}/v4-runner.mjs
+   ```
+   If the spec has auth pre-condition, also export `E2E_TEST_EMAIL` and `E2E_TEST_PASSWORD` from `.env`. If runner exits non-zero → fix the issue, re-run. Do NOT write the marker.
+
+4. **Create the marker** ONLY after the runner exits 0:
    ```bash
    date -u '+%Y-%m-%dT%H:%M:%SZ' > ".workflow/build/{slug}/v4-passed"
    ```
 
 ### If spec has NO `## Verification` section:
 
-V1-V3 passing is sufficient. Create the marker immediately:
-
+V1-V3 passing is sufficient. Do NOT emit a runner. Create the marker immediately:
 ```bash
 date -u '+%Y-%m-%dT%H:%M:%SZ' > ".workflow/build/{slug}/v4-passed"
 ```
+
+---
+
+## Infra Discipline
+
+**DO NOT apply infra via imperative CLI (gcloud, gsutil, aws, kubectl, firebase deploy) if a Terraform resource covers it.** Prefer editing `terraform/*.tf` and letting `deploy.sh update` apply.
+
+If the resource is NOT under Terraform today and you need to mutate it (bucket CORS, lifecycle, IAM binding, Firestore index): do it imperatively, but ALSO:
+1. Record the exact command in `implementation-notes.md` under `## Changed` with the header `**Infra change (imperative):**`
+2. Flag it as a `## Concerns` bullet with the text `needs prod parity check` so `build-certify`'s drift check picks it up.
+
+Imperative infra without a parity record is a silent drift source — the certify drift check will block the build.
 
 ## Notes
 
@@ -101,7 +124,9 @@ Before signaling CERTIFYING, write `.workflow/build/{slug}/implementation-notes.
 
 ## Done
 
-When `bash .workflow/build/verify.sh {slug} --full` passes (V1-V3 + V4+): Status → `CERTIFYING`, implementation-notes.md written.
+When `bash .workflow/build/verify.sh {slug}` passes (V1-V3) AND the `v4-passed` marker exists (V4+ local, if spec has `## Verification`): Status → `CERTIFYING`, implementation-notes.md written.
+
+Do NOT run `verify.sh --full` here — `--full` requires the `certified` marker which is only written by `certify.sh` in the next phase. `--full` is the final audit run by build-certify.
 
 Return ONLY: `{slug}: CERTIFYING`
 
