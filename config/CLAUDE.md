@@ -42,7 +42,7 @@ Cada projeto pode (e deve) ter seu próprio `CLAUDE.md` na raiz com:
 
 - `## Deploy` — comandos de deploy, auth de produção, query de logs (consumido por `resolve-certify` e `build-certify`)
 - `## Resolve Patterns` — Test Commands, Test Dirs, Domain Signals, Bug Archetypes (consumido por `resolve-investigate` Phase A.3)
-- `## Skills Específicas` — comandos custom do projeto em `.claude/commands/` (ex: `/ship` em social-medias)
+- `## Skills Específicas` — comandos custom do projeto em `.claude/commands/` (ex: `/deploy-prod` em social-medias)
 
 Exemplos de referência: `social-medias/CLAUDE.md` (completo), `investing/CLAUDE.md` (minimalista).
 
@@ -58,7 +58,3 @@ Exemplos de referência: `social-medias/CLAUDE.md` (completo), `investing/CLAUDE
 Código sem teste = PR rejeitado.
 Exceções: config files, `.d.ts`, UI puro sem lógica.
 
-## Memory
-
-Namespace: ver CLAUDE.md do projeto.
-Sincronizar via `Task(memory-sync)` ao final de workflows.
